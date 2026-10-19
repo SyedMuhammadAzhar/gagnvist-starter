@@ -54,8 +54,9 @@ detail.
 
 ## Quick start
 
-You need Python 3.11 or newer, git, and an SSH client (included with macOS, Linux and
-Windows 10 or later). Before the hackathon you also get a LUMI account and your team's
+You need Python 3.11 or newer, git, an SSH client (included with macOS, Linux and
+Windows 10 or later), and about 6 GB of free disk space: the repository is about
+250 MB, as the data comes with it, and the unpacked data takes 5.4 GB. Before the hackathon you also get a LUMI account and your team's
 key: see [docs/lumi.md](docs/lumi.md).
 
 **1. Install**
@@ -81,7 +82,10 @@ cp example.env .env                # Windows: copy example.env .env
 > Never put a key anywhere else in the repository. Your SSH key is yours alone, not
 > even for your teammates; your team key is for your team only.
 
-**3. Get the data** (about 250 MB to download, 5.4 GB unpacked; every file is checked):
+**3. Unpack the data.** The data comes with the repository: Statistics Iceland's
+tables in both languages, as they were on 18 October 2026, zipped in `data-release/`.
+Nothing is downloaded from Statistics Iceland. Unpack it (5.4 GB; every file is
+checked) and index it:
 
 ```bash
 gagnvist get-data
@@ -114,7 +118,7 @@ search found and the choices the program corrected.
 
 | Command | What it does |
 |---|---|
-| `gagnvist get-data` | download the data, unpack it and check every file |
+| `gagnvist get-data` | unpack the data that comes with the repository, and check every file |
 | `gagnvist check-data` | check the data again, file by file |
 | `gagnvist build-index` | build the local database of table descriptions |
 | `gagnvist ask "..."` | answer a question |
@@ -192,6 +196,7 @@ src/gagnvist/
                          read_numbers, write_answer, joined in pipeline.py
     evaluate.py          gagnvist evaluate
     lumi/                LUMI: ssh, tunnels, your own jobs, and the job scripts
+data-release/            the data, zipped (in pieces, as GitHub refuses large files)
 questions/               questions with known answers
 index/                   the vector index of the table cards (shipped by the organizers)
 docs/                    how it works, the data, LUMI

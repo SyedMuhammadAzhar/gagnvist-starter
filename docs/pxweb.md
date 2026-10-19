@@ -71,7 +71,8 @@ parts of the hackathon.
 
 ## The files
 
-The data folder (`data/`, made by `gagnvist get-data`) holds:
+The data comes with the repository, zipped in `data-release/`. `gagnvist get-data`
+unpacks it into the data folder, `data/`, which holds:
 
 - `catalogue.csv`: every table in both languages, one row each: dataset, language,
   table code, title, folder, the table's API address, when it was last updated, its
