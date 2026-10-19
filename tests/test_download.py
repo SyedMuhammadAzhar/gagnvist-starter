@@ -95,3 +95,42 @@ def test_a_failed_download_is_reported(tmp_path: Path) -> None:
     client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(404)))
     with pytest.raises(DataError, match="download failed"):
         get_data(tmp_path / "data", url="https://example.org/missing.zip", client=client)
+
+
+def _split(archive: Path, pieces: int) -> None:
+    """Store ``archive`` as pieces, as data-release/ does, and remove the whole file."""
+    content = archive.read_bytes()
+    size = len(content) // pieces + 1
+    for number in range(pieces):
+        piece = archive.with_name(f"{archive.name}.part{number + 1:02}")
+        piece.write_bytes(content[number * size : (number + 1) * size])
+    archive.unlink()
+
+
+def test_get_data_joins_the_pieces_that_come_with_the_repository(
+    data_folder: Path, tmp_path: Path
+) -> None:
+    (tmp_path / "release").mkdir()
+    archive = _zip_of(data_folder, tmp_path / "release" / "data.zip")
+    checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
+    _split(archive, 3)
+    result = get_data(tmp_path / "data", archive=archive, sha256=checksum)
+    assert result.ok and result.files_checked == 26
+    assert sorted(p.name for p in (tmp_path / "release").iterdir()) == [
+        "data.zip.part01",
+        "data.zip.part02",
+        "data.zip.part03",
+    ]  # the pieces are left as they were
+
+
+def test_a_missing_piece_is_reported(data_folder: Path, tmp_path: Path) -> None:
+    archive = _zip_of(data_folder, tmp_path / "data.zip")
+    _split(archive, 3)
+    (tmp_path / "data.zip.part02").unlink()
+    with pytest.raises(DataError, match="incomplete or misnamed"):
+        get_data(tmp_path / "data", archive=archive)
+
+
+def test_without_the_zip_the_message_says_where_it_should_be(tmp_path: Path) -> None:
+    with pytest.raises(DataError, match="comes with the repository"):
+        get_data(tmp_path / "data", archive=tmp_path / "data-release" / "data.zip")

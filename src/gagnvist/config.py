@@ -81,9 +81,10 @@ class ModelSettings:
 
 @dataclass(frozen=True)
 class DataSettings:
-    folder: Path
-    download_url: str
-    sha256: str
+    folder: Path  # where the data is unpacked
+    archive: Path | None  # the data zip that comes with the repository (whole or in pieces)
+    download_url: str  # where to download the zip instead, if it does not come with it
+    sha256: str  # the zip's checksum
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,7 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
     data = _section(raw, "data")
     search = _section(raw, "search")
     ssh_key = _text(lumi, "lumi", "ssh_key", required=False)
+    archive = _text(data, "data", "archive", required=False)
     return Settings(
         lumi=LumiSettings(
             username=_text(lumi, "lumi", "username", required=False),
@@ -197,6 +199,7 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
         ),
         data=DataSettings(
             folder=base / _text(data, "data", "folder"),
+            archive=base / archive if archive else None,
             download_url=_text(data, "data", "download_url", required=False),
             sha256=_text(data, "data", "sha256", required=False).lower(),
         ),

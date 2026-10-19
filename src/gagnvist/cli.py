@@ -78,8 +78,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(title="commands", metavar="COMMAND", required=True)
 
-    get = commands.add_parser("get-data", help="download the data, unpack it and check it")
-    get.add_argument("--zip", type=Path, help="use a data zip you already have, do not download")
+    get = commands.add_parser("get-data", help="unpack the data and check every file")
+    get.add_argument(
+        "--zip", type=Path, help="use this data zip instead of the one in data-release/"
+    )
     get.set_defaults(command=_get_data)
 
     check = commands.add_parser("check-data", help="check every data file against its checksum")
@@ -139,6 +141,7 @@ def _get_data(args: argparse.Namespace, settings: Settings) -> int:
         raise DataError(f"{zip_file} not found")
     result = get_data(
         settings.data.folder,
+        archive=settings.data.archive,
         url=settings.data.download_url,
         sha256=settings.data.sha256,
         zip_file=zip_file,

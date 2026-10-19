@@ -1,8 +1,10 @@
-"""Getting the data onto this computer, and checking that it is complete.
+"""Getting the data ready on this computer, and checking that it is complete.
 
-The organizers publish the data folder as one zip file. :func:`get_data` downloads it
-(or takes a zip you already have), checks the zip against its published checksum,
-unpacks it, and then checks every file against ``SHA256SUMS.txt`` inside it.
+The data comes with the repository: one zip file, stored in pieces of under 50 MB
+(``data-release/<name>.zip.part01``, ``.part02``, ...), because GitHub refuses large
+files. :func:`get_data` joins the pieces, checks the zip against its checksum, unpacks
+it, and then checks every file against ``SHA256SUMS.txt`` inside it. It can also take a
+zip you have, or download one, if the organizers publish it elsewhere.
 """
 
 from __future__ import annotations
@@ -42,14 +44,17 @@ class CheckResult:
 def get_data(
     target: Path,
     *,
+    archive: Path | None = None,
     url: str = "",
     sha256: str = "",
     zip_file: Path | None = None,
     client: httpx.Client | None = None,
 ) -> CheckResult:
-    """Download (or take) the data zip, unpack it into ``target`` and check it.
+    """Unpack the data zip into ``target`` and check it.
 
-    ``target`` must not exist yet, or be empty: nothing already there is overwritten.
+    The zip is ``zip_file`` if given; otherwise ``archive``, the zip that comes with the
+    repository (whole, or in pieces); otherwise it is downloaded from ``url``. ``target``
+    must not exist yet, or be empty: nothing already there is overwritten.
     """
     if target.exists() and any(target.iterdir()):
         raise DataError(
@@ -59,10 +64,17 @@ def get_data(
     # Work next to the target, so unpacking ends with a quick rename rather than a copy.
     with tempfile.TemporaryDirectory(prefix=".gagnvist-", dir=target.parent) as work:
         work_dir = Path(work)
-        archive = zip_file or _download(url, work_dir / "data.zip", client)
+        if zip_file is not None:
+            source = zip_file
+        elif archive is not None and _pieces(archive):
+            source = _join(_pieces(archive), work_dir / "data.zip")
+        elif archive is not None and archive.is_file():
+            source = archive
+        else:
+            source = _download(url, work_dir / "data.zip", client)
         if sha256:
-            _check_checksum(archive, sha256)
-        unpacked = _unpack(archive, work_dir / "unpacked")
+            _check_checksum(source, sha256)
+        unpacked = _unpack(source, work_dir / "unpacked")
         if target.exists():
             target.rmdir()  # empty, as checked above
         unpacked.rename(target)
@@ -89,11 +101,35 @@ def check_data(folder: Path) -> CheckResult:
     return result
 
 
+def _pieces(archive: Path) -> list[Path]:
+    """The pieces of ``archive`` (archive.part01, .part02, ...), in order; [] if none.
+
+    Raises DataError if a piece is missing in the middle.
+    """
+    pieces = sorted(archive.parent.glob(archive.name + ".part*"))
+    expected = [archive.parent / f"{archive.name}.part{n:02}" for n in range(1, len(pieces) + 1)]
+    if pieces != expected:
+        names = ", ".join(p.name for p in pieces)
+        raise DataError(f"the pieces of {archive.name} are incomplete or misnamed: {names}")
+    return pieces
+
+
+def _join(pieces: list[Path], destination: Path) -> Path:
+    """Join the pieces of a zip back into one file."""
+    log.info("joining the %s pieces of %s", len(pieces), pieces[0].name.rsplit(".part", 1)[0])
+    with destination.open("wb") as joined:
+        for piece in pieces:
+            with piece.open("rb") as f:
+                while chunk := f.read(_CHUNK_SIZE):
+                    joined.write(chunk)
+    return destination
+
+
 def _download(url: str, destination: Path, client: httpx.Client | None) -> Path:
     if not url:
         raise DataError(
-            "no download address: set [data] download_url in gagnvist.toml, "
-            "or pass a zip you already have with --zip"
+            "the data zip was not found: it comes with the repository, in data-release/ "
+            "(see [data] archive in gagnvist.toml); or pass a zip you have with --zip"
         )
     log.info("downloading %s", url)
     own_client = client is None
