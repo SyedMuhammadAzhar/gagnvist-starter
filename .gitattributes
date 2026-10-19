@@ -1,0 +1,10 @@
+# Text files use LF line endings in the repository, on every system.
+* text=auto eol=lf
+
+# PxWeb files are kept byte for byte exactly as Statistics Iceland's API sends them
+# (Windows line endings, a byte-order mark, sometimes a non-UTF-8 encoding).
+*.px binary
+tests/fixtures/** binary
+
+# The table index ships as binary arrays.
+*.npy binary

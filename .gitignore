@@ -1,0 +1,31 @@
+# Your personal settings (LUMI username, SSH key, team key) and any keys: never committed
+.env
+.env.*
+config.toml
+*.pem
+*.key
+*.ppk
+id_rsa*
+id_ed25519*
+
+# Downloaded data (fetched with `gagnvist get-data`)
+/data/
+*.zip
+
+# Files made on your computer (e.g. `gagnvist build-index`)
+/local/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
