@@ -8,3 +8,6 @@ tests/fixtures/** binary
 
 # The table index ships as binary arrays.
 *.npy binary
+
+# The data zip, stored in pieces: never change its bytes
+data-release/** binary

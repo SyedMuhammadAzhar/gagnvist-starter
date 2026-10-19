@@ -19,9 +19,11 @@ chat = "qwen2.5-7b"                      # the shared language model on LUMI
 embeddings = "bge-m3"                    # the shared embedding model on LUMI
 
 [data]
-folder = "data"                          # where the data is kept on this computer
-download_url = ""                        # address of the data zip
-sha256 = ""                              # checksum of the data zip
+folder = "data"                          # where `gagnvist get-data` unpacks the data
+# The data zip comes with the repository, in pieces: data-release/<name>.zip.part01, ...
+archive = "data-release/gagnvist-pxweb-data-2026-10-18.zip"
+sha256 = "de4ae9e50e990804a170e2a1a722b29acade4059120faeaffc001859bc38883a"
+download_url = ""                        # only if the zip is published elsewhere instead
 
 [search]
 index = "index"                          # the vector index used to find tables (see README)
