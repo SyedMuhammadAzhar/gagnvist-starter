@@ -1,0 +1,37 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="Windows-1252";
+LANGUAGE="en";
+CREATION-DATE="20170824 10:08";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="HEI02601";
+COPYRIGHT=NO;
+SUBJECT-CODE="HEI11";
+SUBJECT-AREA="Women and men";
+DESCRIPTION="Boards of ICEX-15 (13) companies 2004-2008 ";
+TITLE="Boards of ICEX-15 (13) companies 2004-2008 by Year, Unit and Sex";
+CONTENTS="Boards of ICEX-15 (13) companies 2004-2008";
+STUB="Year";
+HEADING="Unit","Sex";
+VARIABLECODE("Year")="Year";
+VALUES("Year")="2004, June","2005, July","2006, July","2007, January","2007, July","2008, March","2008, July";
+VARIABLECODE("Unit")="Unit";
+VALUES("Unit")="Number","%";
+VARIABLECODE("Sex")="Sex";
+VALUES("Sex")="Women","Men";
+LAST-UPDATED="20090123 00:00";
+UNITS="Number/percent";
+REFPERIOD="2004-2008";
+SOURCE="Iceland Stock Exchange. ";
+VALUENOTE("Year","2008, March")="Correction 24 August 2017: 2008, March instead of 2008 January. ";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+2 83 2 98 
+3 75 4 96 
+4 81 5 95 
+3 80 4 96 
+7 69 9 91 
+14 70 17 83 
+14 64 18 82 
+;

@@ -1,0 +1,37 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="Windows-1252";
+LANGUAGE="is";
+CREATION-DATE="20170824 10:09";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="HEI02601";
+COPYRIGHT=NO;
+SUBJECT-CODE="HEI11";
+SUBJECT-AREA="Konur og karlar";
+DESCRIPTION="Stjórnir í félögum í Úrvalsvísitölu Kauphallar Íslands 2004-2008   ";
+TITLE="Stjórnir í félögum í Úrvalsvísitölu Kauphallar Íslands 2004-2008 by Félag, Eining og Kyn";
+CONTENTS="Stjórnir í félögum í Úrvalsvísitölu Kauphallar Íslands 2004-2008";
+STUB="Félag";
+HEADING="Eining","Kyn";
+VARIABLECODE("Félag")="Félag";
+VALUES("Félag")="2004, júní","2005, júlí","2006, júlí","2007, janúar","2007, júlí","2008, mars","2008, júlí";
+VARIABLECODE("Eining")="Eining";
+VALUES("Eining")="Fjöldi","Hlutföll";
+VARIABLECODE("Kyn")="Kyn";
+VALUES("Kyn")="Konur","Karlar";
+LAST-UPDATED="20090123 00:00";
+UNITS="Fjöldi/hlutföll";
+REFPERIOD="2004-2008";
+SOURCE="Kauphöll Íslands   ";
+VALUENOTE("Félag","2008, mars")="Lagfært 24.08.17. Áður stóð 2008, janúar.    ";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+2 83 2 98 
+3 75 4 96 
+4 81 5 95 
+3 80 4 96 
+7 69 9 91 
+14 70 17 83 
+14 64 18 82 
+;

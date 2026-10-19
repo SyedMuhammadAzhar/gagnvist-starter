@@ -1,0 +1,31 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="Windows-1252";
+LANGUAGE="is";
+CREATION-DATE="20150223 11:51";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="KOS02108";
+COPYRIGHT=NO;
+SUBJECT-CODE="KOS";
+SUBJECT-AREA="Kosningar";
+DESCRIPTION="Kosning í heimahúsi við alþingiskosningar 2013";
+TITLE="Kosning í heimahúsi í alþingiskosningum 2013 by Skipting og Kyn";
+CONTENTS="Kosning í heimahúsi í alþingiskosningum 2013";
+STUB="Skipting";
+HEADING="Kyn";
+VARIABLECODE("Skipting")="Skipting";
+VALUES("Skipting")="Alls","Vegna sjúkdóms","Vegna fötlunar","Vegna barnsburðar";
+VARIABLECODE("Kyn")="Kyn";
+VALUES("Kyn")="Alls","Karlar","Konur";
+LAST-UPDATED="20130926 00:00";
+UNITS="Fjöldi";
+REFPERIOD="2013";
+NOTE="Skýring: Sbr. 58.gr. l. nr. 24/2000.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+27 12 15 
+20 8 12 
+7 4 3 
+0 "." 0 
+;

@@ -1,0 +1,45 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="iso-8859-15";
+LANGUAGE="is";
+CREATION-DATE="20051021 00:00";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="HEI11505";
+AUTOPEN=YES;
+COPYRIGHT=YES;
+SUBJECT-CODE="HEI11";
+SUBJECT-AREA="Konur og karlar";
+DESCRIPTION="Samtök á vinnumarkaði";
+TITLE="Samtök á vinnumarkaði by samtök á vinnumarkaði, ár og kyn";
+CONTENTS="Samtök á vinnumarkaði";
+STUB="samtök á vinnumarkaði";
+HEADING="ár","kyn";
+VARIABLECODE("samtök á vinnumarkaði")="samtök á vinnumarkaði";
+VALUES("samtök á vinnumarkaði")="Samtök atvinnulífsins Fulltrúaráð","  Samtök atvinnulífsins Stjórn","  Samtök atvinnulífsins Framkvæmdastjórn"," Félagsmenn ASÍ"," Félagsmenn BSRB"," Félagsmenn BHM"," Félagsmenn KÍ"," Félagsmenn SÍB"," Stjórn ASÍ"," Stjórn BSRB"," Stjórn BHM",
+" Stjórn KÍ"," Stjórn SÍB";
+VARIABLECODE("ár")="ár";
+VALUES("ár")="1975","1985","1995","2005";
+VARIABLECODE("kyn")="kyn";
+VALUES("kyn")="Konur","Karlar";
+LAST-UPDATED="20051024 00:00";
+UNITS="hlutfall";
+REFPERIOD="1975-2005";
+NOTE="Í sumum tilvikum eru upplýsingar ekki tiltækar fyrir viðmiðunarár og er þá stuðst við tölur sem standa næst því í tíma. Nýjustu tölur eru fyrir 2003–2004. Tölur um Samtök atvinnulífsins við fyrstu tvö viðmiðunarárin eiga við Vinnuveitendasamband Íslands,"
+" forvera SA. Elstu tölur um launþegasamtökin eru fyrir árin 1971-1972 og síðan fyrir 1984.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+"-" 100 "-" 100 ".." ".." 8 92 
+"-" 100 "-" 100 ".." ".." 20 80 
+"-" 100 "-" 100 ".." ".." 29 71 
+38 62 46 54 47 53 50 50 
+42 58 61 39 67 33 70 30 
+9 91 22 78 68 32 77 23 
+"." "." ".." ".." 71 29 75 25 
+48 52 70 30 75 25 71 29 
+7 93 33 67 33 67 27 73 
+"-" 100 "-" 100 43 57 35 65 
+"-" 100 20 80 52 48 57 43 
+"." "." 45 55 47 53 58 42 
+"-" 100 46 54 29 71 57 43 
+;

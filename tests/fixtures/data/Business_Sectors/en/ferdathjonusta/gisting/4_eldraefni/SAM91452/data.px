@@ -1,0 +1,52 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="iso-8859-15";
+LANGUAGE="is";
+LANGUAGES="is","en";
+CREATION-DATE="20170831 09:00";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="SAM91452";
+COPYRIGHT=NO;
+SUBJECT-CODE="SAM91";
+SUBJECT-AREA="Ferðamál";
+DESCRIPTION="Áætlaðar óskráðar gistinætur 2016";
+TITLE="Áætlaðar óskráðar gistinætur 2016 með Ár og Landsvæði";
+CONTENTS="Áætlaðar óskráðar gistinætur 2016";
+STUB="Ár";
+HEADING="Landsvæði";
+VARIABLECODE("Ár")="Ár";
+VALUES("Ár")="2016";
+VARIABLECODE("Landsvæði")="Landsvæði";
+VALUES("Landsvæði")="Alls","Höfuðborgarsvæði","Suðurnes","Vesturland","Vestfirðir","Norðurland vestra","Norðurland eystra","Austurland","Suðurland";
+TIMEVAL("Ár")=TLIST(A1),"2016";
+CODES("Ár")="2016";
+LAST-UPDATED="20170831 09:00";
+UNITS="Tölur";
+REFPERIOD="2016";
+CONTACT="gistiskyrslur@hagstofa.is";
+NOTE="Áætlaðar tölur sem byggja á tiltækum upplýsingum frá tveimur vefsköfunaraðilum, http://tomslee.net/ og http://airdna.co, auðgað með gögnum úr gistináttagrunni Hagstofu Íslands. Ætla má að árið 2016 hafi tæplega 3600 herbergi/íbúðir verið reglulega til le"
+"igu í gegnum vefsíðu Airbnb, þar af um 2000 á höfuðborgarsvæðinu. Ljóst er að framboð gistirýmis er ekki stöðugt yfir árið og því er erfitt að áætla nákvæmt framboð og nýtingu gistirýmis. Ef miðað við gögn frá Airdna.co eru flestar eignir í útleigu 1–3 m"
+"ánuði (38%) á ári en fæstar (15%) í útleigu 10–12 mánuði á ári.";
+SUBJECT-AREA[en]="Accommodation";
+DESCRIPTION[en]="Estimated unlisted overnight stays 2016";
+TITLE[en]="Estimated unlisted overnight stays 2016 by Year and Region";
+CONTENTS[en]="Estimated unlisted overnight stays 2016";
+STUB[en]="Year";
+HEADING[en]="Region";
+VARIABLECODE[en]("Year")="Ár";
+VALUES[en]("Year")="2016";
+VARIABLECODE[en]("Region")="Landsvæði";
+VALUES[en]("Region")="Total","Capital region","Southwest","West","Westfjords","Northwest","Northeast","East","South";
+TIMEVAL[en]("Year")=TLIST(A1),"2016";
+LAST-UPDATED[en]="20170831 09:00";
+UNITS[en]="Number";
+REFPERIOD[en]="2016";
+CONTACT[en]="gistiskyrslur@hagstofa.is";
+NOTE[en]="Estimated figures based on available information from two web scrapers, http://tomslee.net/ and http://airdna.co, enriched with data from Statistics Iceland. It is expected that in 2016, approximately 3600 rooms / apartments were rented regularly through"
+" Airbnb's website, including around 2000 in the capital area. It is clear that the availability of accommodation is not stable over the year and it is difficult to estimate the exact availability and utilization of accommodation space. According to Airdn"
+"a.co data, most of the properties are leased out 1-3 months (38%) per year, but the fewest (15%) are leased out 10-12 months a year.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+1036875 669164 25400 41976 14454 15377 65032 30577 174895 
+;

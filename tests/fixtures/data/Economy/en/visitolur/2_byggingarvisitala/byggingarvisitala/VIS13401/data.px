@@ -1,0 +1,37 @@
+﻿CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="utf-8";
+LANGUAGE="en";
+CREATION-DATE="20211220 09:00";
+DECIMALS=4;
+SHOWDECIMALS=1;
+MATRIX="VIS13401";
+COPYRIGHT=YES;
+SUBJECT-CODE="VIS13";
+SUBJECT-AREA="Prices";
+DESCRIPTION="Building cost index, annual average";
+TITLE="Prices and consumption by Year and Item";
+CONTENTS="Prices and consumption";
+STUB="Year";
+HEADING="Item";
+VARIABLECODE("Year")="Year";
+VALUES("Year")="2022","2023","2024","2025";
+VARIABLECODE("Item")="Item";
+VALUES("Item")="Annual average","Annual change, %";
+CODES("Year")="2022","2023","2024","2025";
+CODES("Item")="avg","change_A";
+LAST-UPDATED="20251222 09:00";
+UNITS="Annual average indices and yearly change in percentage";
+REFPERIOD="2021-2024";
+SOURCE="Statistics Iceland";
+NOTE="The table displays annual averages and annual changes for the December 2021=100 base. Annual average is compiled for measured index values for January to December each year.##The index house, which is measured is a three story high apartment building loc"
+"ated in the capital area. The house has an open-air corridor with 18 apartments each equipped with parking space in a garage which is partly below ground level. In addition there is an asphalted parking space on the roof of the parking garage, from which"
+" the building is entered. The house is constructed with both in situ reinforced concrete and pre-casted concrete units. Internal walls are plastered. The house is equipped with an elevator. Landscape is finalized with a flat lawn, shrubs and a playing ya"
+"rd.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+106.2942 9.0369 
+115.0001 8.1995 
+119.7724 4.1406 
+124.9000 4.3000 
+;

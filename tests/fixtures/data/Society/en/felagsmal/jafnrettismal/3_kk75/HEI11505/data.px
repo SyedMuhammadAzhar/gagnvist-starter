@@ -1,0 +1,46 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="Windows-1252";
+LANGUAGE="en";
+CREATION-DATE="20051021 00:00";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="HEI11505";
+AUTOPEN=YES;
+COPYRIGHT=YES;
+SUBJECT-CODE="HEI11";
+SUBJECT-AREA="Women and men";
+DESCRIPTION="Labour market organizations";
+TITLE="Labour market organizations by labour market organizations, year and sex";
+CONTENTS="Labour market organizations";
+STUB="labour market organizations";
+HEADING="year","sex";
+VARIABLECODE("labour market organizations")="labour market organizations";
+VALUES("labour market organizations")="SA Confederation of Icelandic Employers  Board of representatives","SA Confederation of Icelandic Employers  Board of directors","SA Confederation of Icelandic Employers  Executive board","  Icelandic Federation of Labour Members",
+"  Federation of State and Municipal Employees Members","  Association of Academics Members","  Teachers´ Association of Iceland Members","  Union of Icelandic Bank Employees Members"," Board of Icelandic Federation of Labour",
+" Board of Federation of State and Municipal Employees"," Board of Association of Academics"," Board of Teachers´ Association of Iceland"," Board of Union of Icelandic Bank Employees";
+VARIABLECODE("year")="year";
+VALUES("year")="1975","1985","1995","2005";
+VARIABLECODE("sex")="sex";
+VALUES("sex")="Women","Men";
+LAST-UPDATED="20051024 00:00";
+UNITS="percent";
+REFPERIOD="1975-2005";
+NOTE="In some instances data is not available for the reference year so data closest to the year is used. Newest data refers to 2003-2004. Figures on SA refer to Confederation of Icelandic Employers, former to SA. Oldest figures on the labour federations refer"
+" to 1971-72 and then to 1984.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+"-" 100 "-" 100 ".." ".." 8 92 
+"-" 100 "-" 100 ".." ".." 20 80 
+"-" 100 "-" 100 ".." ".." 29 71 
+38 62 46 54 47 53 50 50 
+42 58 61 39 67 33 70 30 
+9 91 22 78 68 32 77 23 
+"." "." ".." ".." 71 29 75 25 
+48 52 70 30 75 25 71 29 
+7 93 33 67 33 67 27 73 
+"-" 100 "-" 100 43 57 35 65 
+"-" 100 20 80 52 48 57 43 
+"." "." 45 55 47 53 58 42 
+"-" 100 46 54 29 71 57 43 
+;

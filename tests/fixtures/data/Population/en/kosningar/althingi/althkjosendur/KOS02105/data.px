@@ -1,0 +1,31 @@
+CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="Windows-1252";
+LANGUAGE="en";
+CREATION-DATE="20150220 14:25";
+DECIMALS=0;
+SHOWDECIMALS=0;
+MATRIX="KOS02108";
+COPYRIGHT=NO;
+SUBJECT-CODE="KOS04";
+SUBJECT-AREA="Elections";
+DESCRIPTION="Voting at home in general elections 2013";
+TITLE="Voting at home in general elections 2013 by Category and Sex";
+CONTENTS="Voting at home in general elections 2013";
+STUB="Category";
+HEADING="Sex";
+VARIABLECODE("Category")="Category";
+VALUES("Category")="Total","Due to illness","Due to disability","Due to childbirth";
+VARIABLECODE("Sex")="Sex";
+VALUES("Sex")="Total","Males","Females";
+LAST-UPDATED="20150224 00:00";
+UNITS="Number";
+REFPERIOD="2013";
+NOTE="Note: With reference to Act 24/2000 art. 58.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+27 12 15 
+20 8 12 
+7 4 3 
+0 "." 0 
+;

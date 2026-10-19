@@ -1,0 +1,37 @@
+﻿CHARSET="ANSI";
+AXIS-VERSION="2010";
+CODEPAGE="utf-8";
+LANGUAGE="is";
+CREATION-DATE="20211220 09:00";
+DECIMALS=4;
+SHOWDECIMALS=1;
+MATRIX="VIS13401";
+COPYRIGHT=YES;
+SUBJECT-CODE="VIS13";
+SUBJECT-AREA="Verðlag";
+DESCRIPTION="Byggingarvísitala, ársmeðaltöl";
+TITLE="Byggingarvísitala by Ár og Liður";
+CONTENTS="Byggingarvísitala";
+STUB="Ár";
+HEADING="Liður";
+VARIABLECODE("Ár")="Ár";
+VALUES("Ár")="2022","2023","2024","2025";
+VARIABLECODE("Liður")="Liður";
+VALUES("Liður")="Ársmeðaltal","Ársbreyting, %";
+TIMEVAL("Ár")=TLIST(A1),"2022","2023","2024","2025";
+CODES("Ár")="2022","2023","2024","2025";
+CODES("Liður")="avg","change_A";
+LAST-UPDATED="20251222 09:00";
+UNITS="Ársmeðaltölur og ársbreytingar";
+REFPERIOD="2021-2025";
+SOURCE="Hagstofa Íslands";
+NOTE="Í töflunni eru birt meðaltöl og ársbreytingar á grunni desember 2021=100. Ársmeðaltal er reiknað á útreiknuð gildi vísitölunnar frá janúar til desember ár hvert.##Vísitöluhúsið er þriggja hæða fjölbýlishús á höfuðborgarsvæðinu. Það er svalagangshús með 1"
+"8 íbúðum og hálfniðurgrafinni bílageymslu þar sem er bílastæði fyrir hverja íbúð. Auk þess eru malbikuð bílastæði á þaki bílageymslunnar en þaðan er einnig gengið inn í stigahúsið. Húsið er staðsteypt að hluta en að hluta reist úr forsteyptum einingum. M"
+"illiveggir í íbúðum eru úr gifsi. Lyfta er í húsinu. Lóð er frágengin með grasi, gróðri og barnaleiksvæði.";
+DESCRIPTIONDEFAULT=YES;
+DATA=
+106.2942 9.0369 
+115.0001 8.1995 
+119.7724 4.1406 
+124.8811 4.2687 
+;
