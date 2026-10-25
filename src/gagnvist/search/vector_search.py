@@ -1,7 +1,8 @@
 """Finding the tables whose description is closest to a question.
 
 Every table has a short text, its *card*: its title and the names of its dimensions
-(see :func:`card_text`). The cards were turned into vectors once, by the shared
+(see :func:`card_text`; every card, in both languages, is in ``cards/``, see
+:mod:`gagnvist.cards`). The cards were turned into vectors once, by the shared
 embedding model on LUMI, and the result ships with this repository in ``index/``:
 
     index/manifest.json   which model made the vectors, when, and from which card recipe

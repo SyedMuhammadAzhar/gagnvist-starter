@@ -22,6 +22,7 @@ from gagnvist import __version__
 from gagnvist.answering.find_tables import find_tables
 from gagnvist.answering.language import guess_language
 from gagnvist.answering.pipeline import Answer, AnswerError, Pipeline, open_vector_index
+from gagnvist.cards import make_table_cards, save_cards, search_cards
 from gagnvist.config import DEFAULT_CONFIG_FILE, ConfigError, Settings, load_settings
 from gagnvist.data.download import CheckResult, DataError, check_data, get_data
 from gagnvist.data.px_reader import PxError
@@ -30,7 +31,7 @@ from gagnvist.lumi.cli import add_lumi_commands
 from gagnvist.lumi.connection import LumiError
 from gagnvist.models.client import ModelClient, ModelError
 from gagnvist.search.table_index import TableIndex, build_index
-from gagnvist.search.vector_search import VectorIndex, make_cards
+from gagnvist.search.vector_search import VectorIndex
 
 Command = Callable[[argparse.Namespace, Settings], int]
 
@@ -91,6 +92,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "build-index", help="build the local database of table descriptions"
     )
     index.set_defaults(command=_build_index)
+
+    cards = commands.add_parser(
+        "build-cards", help="write every table's card, in both languages, into the cards folder"
+    )
+    cards.add_argument(
+        "--replace", action="store_true", help="replace the cards already in that folder"
+    )
+    cards.set_defaults(command=_build_cards)
 
     trial = commands.add_parser(
         "try-models", help="send one small request to the chat model and the embedding model"
@@ -160,6 +169,19 @@ def _build_index(args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _build_cards(args: argparse.Namespace, settings: Settings) -> int:
+    folder = settings.search.cards
+    if (folder / "cards-is.jsonl").is_file() and not args.replace:
+        raise ConfigError(
+            f"{folder} already holds cards. Set [search] cards in gagnvist.toml to a new "
+            "folder (for example local/cards-mine), or add --replace to overwrite them"
+        )
+    cards = make_table_cards(settings.data.folder)
+    save_cards(cards, folder)
+    print(f"Wrote {len(cards):,} cards ({len(cards) // 2:,} tables in both languages) to {folder}")
+    return 0
+
+
 def _try_models(args: argparse.Namespace, settings: Settings) -> int:
     with closing(ModelClient.from_settings(settings)) as client:
         started = time.perf_counter()
@@ -191,8 +213,7 @@ def _build_vectors(args: argparse.Namespace, settings: Settings) -> int:
             "to a new folder (for example local/index-mymodel), or add --replace to "
             "overwrite it"
         )
-    with closing(TableIndex(settings.table_database)) as tables:
-        cards = make_cards(tables)
+    cards = search_cards(settings.search.cards)
     with closing(ModelClient.from_settings(settings)) as client:
         index = VectorIndex.build(cards, client.embed, client.embedding_endpoint.model)
     index.save(settings.search.index)

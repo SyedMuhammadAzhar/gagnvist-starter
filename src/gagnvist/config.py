@@ -90,6 +90,7 @@ class DataSettings:
 @dataclass(frozen=True)
 class SearchSettings:
     index: Path  # the vector index used to find tables; made with [models] embeddings
+    cards: Path  # the table cards whose texts build-vectors embeds
 
 
 @dataclass(frozen=True)
@@ -203,7 +204,10 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
             download_url=_text(data, "data", "download_url", required=False),
             sha256=_text(data, "data", "sha256", required=False).lower(),
         ),
-        search=SearchSettings(index=base / _text(search, "search", "index")),
+        search=SearchSettings(
+            index=base / _text(search, "search", "index"),
+            cards=base / (_text(search, "search", "cards", required=False) or "cards"),
+        ),
         project_folder=base,
     )
 
