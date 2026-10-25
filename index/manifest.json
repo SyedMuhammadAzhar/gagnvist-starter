@@ -1,0 +1,7 @@
+{
+  "model": "bge-m3",
+  "cards": 3772,
+  "dimensions": 1024,
+  "card_recipe": "title. dimension labels, comma separated",
+  "created": "2026-10-25T20:33:10+00:00"
+}
