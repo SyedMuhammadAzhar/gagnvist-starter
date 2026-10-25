@@ -77,6 +77,22 @@ class TableMetadata:
         raise KeyError(f"the table has no dimension with code {code!r}")
 
 
+def clean_title(text: str) -> str:
+    """A title as a person should read it: runs of spaces made one, and characters
+    that reached the text as control characters repaired. (Statistics Iceland's API
+    lists six census titles with U+0096, a Windows-1252 en dash, where U+2013 belongs;
+    190 titles have extra spaces.)"""
+    repaired = "".join(_from_windows_1252(c) if "\x80" <= c <= "\x9f" else c for c in text)
+    return " ".join(repaired.split())
+
+
+def _from_windows_1252(character: str) -> str:
+    try:
+        return bytes([ord(character)]).decode("cp1252")
+    except UnicodeDecodeError:  # five codes have no character in Windows-1252
+        return ""
+
+
 def read_catalogue(data_folder: Path) -> list[CatalogueEntry]:
     """Every table in the data folder, in both languages."""
     path = data_folder / "catalogue.csv"
@@ -88,7 +104,7 @@ def read_catalogue(data_folder: Path) -> list[CatalogueEntry]:
                 folder=row["folder"],
                 language=row["language"],
                 table_code=row["table_code"],
-                title=row["title"].strip(),
+                title=clean_title(row["title"]),
                 dataset=row["dataset"],
                 api_url=row["api_url"],
                 last_updated=row["last_updated"],
@@ -104,7 +120,7 @@ def read_metadata(data_folder: Path, folder: str) -> TableMetadata:
     with (data_folder / folder / "metadata.json").open(encoding="utf-8") as f:
         raw = json.load(f)
     return TableMetadata(
-        title=raw["title"].strip() if raw.get("title") else None,
+        title=clean_title(raw["title"]) if raw.get("title") else None,
         dimensions=tuple(
             Dimension(
                 code=variable["code"],
