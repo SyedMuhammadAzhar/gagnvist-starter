@@ -2,8 +2,9 @@
 
 The search (step 1, see [how-it-works.md](how-it-works.md)) compares the question's
 vector with the vectors of the tables' *cards*. Both are made by the same embedding
-model, and the cards are made by one function, `card_text` in
-`src/gagnvist/search/vector_search.py`:
+model. The cards come with the repository in `cards/`, in both languages (see
+[cards/README.md](../cards/README.md)); the text of each is made by one function,
+`card_text` in `src/gagnvist/search/vector_search.py`:
 
 ```python
 def card_text(entry: CatalogueEntry, metadata: TableMetadata) -> str:
@@ -18,17 +19,23 @@ the shipped one in `index/`, and build yours in a folder of its own.
 
 ## Richer cards
 
-1. Change `card_text`, for example to add the labels of a few categories, the years the
-   table covers, or its dataset. Keep cards short: a card of a few hundred words says
-   less, to an embedding model, than a card of a few dozen.
-2. Point `gagnvist.toml` to a new folder, and build the index there (a few minutes):
+1. Make new card texts, in a cards folder of your own. Either write the folder with a
+   script (or by hand, or with a model): [cards/README.md](../cards/README.md) has an
+   example. Or change `card_text`, for example to add the labels of a few categories,
+   the years the table covers, or its dataset, and let `gagnvist build-cards` write
+   the folder. Keep cards short: a card of a few hundred words says less, to an
+   embedding model, than a card of a few dozen.
+2. Point `gagnvist.toml` to your cards and to a new index folder, and build the index
+   there (a few minutes):
 
    ```toml
    [search]
    index = "local/index-richer-cards"
+   cards = "local/cards-richer"
    ```
 
    ```bash
+   gagnvist build-cards      # only if you changed card_text
    gagnvist build-vectors
    ```
 
@@ -63,8 +70,8 @@ the shipped one in `index/`, and build yours in a folder of its own.
 3. `gagnvist build-vectors`, then `gagnvist evaluate`.
 
 Some embedding models expect a word before every text: the e5 models, for example,
-want `query: ` before a question and `passage: ` before a document. Add them in
-`card_text` and in `find_tables` (`answering/find_tables.py`), where the question is
+want `query: ` before a question and `passage: ` before a document. Add them to the
+cards' texts and in `find_tables` (`answering/find_tables.py`), where the question is
 embedded. The model's page on Hugging Face says what it expects. The shared model,
 bge-m3, needs none.
 

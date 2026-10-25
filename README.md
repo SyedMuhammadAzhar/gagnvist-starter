@@ -55,8 +55,8 @@ detail.
 ## Quick start
 
 You need Python 3.11 or newer, git, an SSH client (included with macOS, Linux and
-Windows 10 or later), and about 6 GB of free disk space: the repository is about
-250 MB, as the data comes with it, and the unpacked data takes 5.4 GB. Before the hackathon you also get a LUMI account and your team's
+Windows 10 or later), and about 7 GB of free disk space: the repository is about
+300 MB, as the data comes with it, and the unpacked data takes 5.7 GB. Before the hackathon you also get a LUMI account and your team's
 key: see [docs/lumi.md](docs/lumi.md).
 
 **1. Install**
@@ -84,7 +84,7 @@ cp example.env .env                # Windows: copy example.env .env
 
 **3. Unpack the data.** The data comes with the repository: Statistics Iceland's
 tables in both languages, as they were on 18 October 2026, zipped in `data-release/`.
-Nothing is downloaded from Statistics Iceland. Unpack it (5.4 GB; every file is
+Nothing is downloaded from Statistics Iceland. Unpack it (5.7 GB; every file is
 checked) and index it:
 
 ```bash
@@ -125,7 +125,8 @@ search found and the choices the program corrected.
 | `gagnvist find-tables "..."` | only search: the tables closest to a question |
 | `gagnvist evaluate` | answer questions with known answers and count the right ones |
 | `gagnvist try-models` | send one small request to each model |
-| `gagnvist build-vectors` | embed every table's card into a new vector index |
+| `gagnvist build-cards` | write every table's card, in both languages, into `cards/` (they come with the repository) |
+| `gagnvist build-vectors` | embed the text of every card in `cards/` into a new vector index |
 | `gagnvist lumi ...` | the tunnel to the shared models, and models of your own: see [docs/lumi.md](docs/lumi.md) |
 
 Every command has `--help`.
@@ -146,7 +147,7 @@ Where to look first:
 
 | To improve | Change | Read |
 |---|---|---|
-| which table is found | the cards, the embedding model, or the search itself | [docs/re-embedding.md](docs/re-embedding.md), `answering/find_tables.py` |
+| which table is found | the cards, the embedding model, or the search itself | [cards/README.md](cards/README.md), [docs/re-embedding.md](docs/re-embedding.md), `answering/find_tables.py` |
 | which numbers are chosen | the prompt, or how categories are shown | `models/prompts.py`, `answering/choose_categories.py` |
 | how the answer is written | the prompt | `models/prompts.py`, `answering/write_answer.py` |
 | the language model | a bigger or different model, or fine-tuning | [docs/lumi.md](docs/lumi.md) |
@@ -189,6 +190,7 @@ example.env              personal settings: copy to .env, which is never committ
 src/gagnvist/
     cli.py               the gagnvist command
     config.py            reading gagnvist.toml and .env
+    cards.py             the table cards: gagnvist build-cards
     data/                the data: downloading, the catalogue, reading data.px files
     search/              the table database, and the vector search over the cards
     models/              talking to the models (client.py), and every prompt (prompts.py)
@@ -198,6 +200,8 @@ src/gagnvist/
     lumi/                LUMI: ssh, tunnels, your own jobs, and the job scripts
 data-release/            the data, zipped (in pieces, as GitHub refuses large files)
 questions/               questions with known answers
+cards/                   every table's card, in Icelandic and English: titles, dimensions,
+                         categories, periods (see cards/README.md)
 index/                   the vector index of the table cards (shipped by the organizers)
 docs/                    how it works, the data, LUMI
 tests/                   the tests, a miniature copy of the data, and stand-ins for
@@ -216,9 +220,18 @@ mypy
 The tests run against a miniature copy of the data (`tests/fixtures/`), a stand-in for
 the model servers (`tests/standin.py`) and a fake LUMI (`tests/fake_lumi.py`). The
 stand-in can also run as a server, so that you can try the whole program without LUMI:
-start `python tests/standin.py` (it listens where the tunnel would, on port 8765), put
-`GAGNVIST_CHAT_MODEL=standin-chat` and `GAGNVIST_EMBEDDINGS_MODEL=standin-embeddings` in
-`.env`, set `[search] index = "local/index-standin"` in `gagnvist.toml`, and run
+start `python tests/standin.py --port 8766`, put these lines in `.env`:
+
+```bash
+GAGNVIST_CHAT_MODEL=standin-chat
+GAGNVIST_CHAT_URL=http://127.0.0.1:8766/v1
+GAGNVIST_CHAT_KEY=test
+GAGNVIST_EMBEDDINGS_MODEL=standin-embeddings
+GAGNVIST_EMBEDDINGS_URL=http://127.0.0.1:8766/v1
+GAGNVIST_EMBEDDINGS_KEY=test
+```
+
+set `[search] index = "local/index-standin"` in `gagnvist.toml`, and run
 `gagnvist build-vectors`. Its answers only repeat the numbers it is given.
 
 ## Data and licences

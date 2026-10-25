@@ -6,11 +6,12 @@ to find the tables closest to a question (see `src/gagnvist/search/vector_search
 | File | Holds |
 |---|---|
 | `manifest.json` | which embedding model made the vectors, when, and from which card recipe |
-| `cards.jsonl` | one card per line: the table's folder, its language and the card's text |
+| `cards.jsonl` | one card per line: the table's folder, its language and the card's text, as embedded (from `cards/`) |
 | `vectors.npy` | one vector per card, in the same order |
 
-The organizers make it with the shared embedding model on LUMI and ship it here, so
-that every team starts from the same index. If it is missing, make it yourself with
+The organizers make it once, from the texts in `cards/` and with the shared embedding
+model on LUMI, and ship it here, so that every team starts from the same index and
+nobody needs to embed the cards again. If it is missing, make it yourself with
 `gagnvist build-vectors` (a few minutes with the shared models connected).
 
 An index only works with the embedding model that made it: a question must be embedded
