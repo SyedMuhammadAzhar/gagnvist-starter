@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import sys
 from pathlib import Path
@@ -212,8 +213,8 @@ class FakeLumi:
         key = tmp_path / "id_ed25519_lumi"
         key.write_text("not a real key")
         shared = (Path(__file__).parents[1] / "gagnvist.toml").read_text(encoding="utf-8")
-        shared = shared.replace("project_000000000", PROJECT)
-        shared = shared.replace("organizer_username", ORGANIZER)
+        shared = re.sub(r'(?m)^project = "[^"]*"', f'project = "{PROJECT}"', shared)
+        shared = re.sub(r'(?m)^gateway_user = "[^"]*"', f'gateway_user = "{ORGANIZER}"', shared)
         shared = shared.replace(
             shared.split("container = ", 1)[1].split("\n", 1)[0], f'"{CONTAINER}"'
         )

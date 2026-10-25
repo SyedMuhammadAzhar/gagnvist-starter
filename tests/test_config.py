@@ -1,5 +1,6 @@
 """Reading the settings: gagnvist.toml, then .env, then the environment."""
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -106,8 +107,13 @@ def test_a_port_that_is_not_a_port_number_is_reported(tmp_path: Path, value: str
 
 
 def test_the_gateway_must_be_filled_in_by_the_organizers(tmp_path: Path) -> None:
+    filled_in = re.search(
+        r'(?m)^gateway_user = "[^"]*"', SHARED_SETTINGS.read_text(encoding="utf-8")
+    )
+    assert filled_in
+    path = write_settings(tmp_path, changes={filled_in[0]: 'gateway_user = "organizer_username"'})
     with pytest.raises(ConfigError, match="gateway_user"):
-        load_settings(write_settings(tmp_path)).require_gateway()
+        load_settings(path).require_gateway()
 
 
 def test_the_shared_settings_hold_nothing_personal() -> None:
