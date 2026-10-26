@@ -11,6 +11,8 @@ id_ed25519*
 # Downloaded data (fetched with `gagnvist get-data`)
 /data/
 *.zip
+# left by a `gagnvist get-data` that was interrupted
+.gagnvist-*/
 
 # Files made on your computer (e.g. `gagnvist build-index`)
 /local/

@@ -59,6 +59,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     ) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+    except PermissionError as e:
+        print(
+            f"error: {e}. If another program has the file open (an app of yours, a database "
+            "viewer, a sync service such as OneDrive), close it and try again.",
+            file=sys.stderr,
+        )
+        return 1
+    except OSError as e:  # e.g. a full disk
+        print(f"error: {e}", file=sys.stderr)
+        return 1
     except KeyboardInterrupt:
         print("stopped", file=sys.stderr)
         return 130

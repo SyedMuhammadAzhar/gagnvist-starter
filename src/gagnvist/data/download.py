@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import shutil
+import sys
 import tempfile
 import zipfile
 from dataclasses import dataclass, field
@@ -22,6 +25,8 @@ log = logging.getLogger(__name__)
 
 _CHUNK_SIZE = 1 << 20  # read and write files in pieces of 1 MB
 _ZIP_ROOT = "data"  # every file in the zip sits under data/
+_WORK_PREFIX = ".gagnvist-"  # the folder used while unpacking, next to the data folder
+_WINDOWS_PATH_LIMIT = 259  # characters in a path, unless long paths are turned on
 
 
 class DataError(Exception):
@@ -61,13 +66,21 @@ def get_data(
             f"{target} already exists and is not empty; the data is not unpacked over it"
         )
     target.parent.mkdir(parents=True, exist_ok=True)
+    for leftover in sorted(target.parent.glob(_WORK_PREFIX + "*")):
+        log.warning(
+            "note: %s was left by an earlier `gagnvist get-data` that was interrupted; it "
+            "can be deleted to free disk space",
+            leftover,
+        )
     # Work next to the target, so unpacking ends with a quick rename rather than a copy.
-    with tempfile.TemporaryDirectory(prefix=".gagnvist-", dir=target.parent) as work:
+    with tempfile.TemporaryDirectory(prefix=_WORK_PREFIX, dir=target.parent) as work:
         work_dir = Path(work)
         if zip_file is not None:
             source = zip_file
         elif archive is not None and _pieces(archive):
-            source = _join(_pieces(archive), work_dir / "data.zip")
+            pieces = _pieces(archive)
+            _check_free_space(work_dir, sum(p.stat().st_size for p in pieces), "join the zip")
+            source = _join(pieces, work_dir / "data.zip")
         elif archive is not None and archive.is_file():
             source = archive
         else:
@@ -171,14 +184,56 @@ def _unpack(archive: Path, destination: Path) -> Path:
     log.info("unpacking %s", archive.name)
     try:
         with zipfile.ZipFile(archive) as z:
-            for name in z.namelist():
+            names = z.namelist()
+            for name in names:
                 parts = PurePosixPath(name).parts
                 if not parts or parts[0] != _ZIP_ROOT or ".." in parts or name.startswith("/"):
                     raise DataError(f"{archive.name} contains an unexpected entry: {name!r}")
+            if os.name == "nt" and not _long_paths_enabled():
+                too_long = too_long_for_windows(destination, names)
+                if too_long > 0:
+                    raise DataError(
+                        f"the folder {destination.parent.parent} is too deep for Windows: some "
+                        f"data files would get paths longer than {_WINDOWS_PATH_LIMIT} "
+                        f"characters. Move the starter kit to a folder whose path is at least "
+                        f"{too_long} characters shorter, such as C:\\gagnvist"
+                    )
+            _check_free_space(destination.parent, sum(i.file_size for i in z.infolist()), "unpack")
             z.extractall(destination)
     except zipfile.BadZipFile as e:
         raise DataError(f"{archive.name} is not a valid zip file") from e
     return destination / _ZIP_ROOT
+
+
+def too_long_for_windows(destination: Path, names: list[str]) -> int:
+    """By how many characters the longest unpacked path would exceed Windows' limit
+    (0 or less: every path fits)."""
+    longest = max((len(str(destination)) + 1 + len(name) for name in names), default=0)
+    return longest - _WINDOWS_PATH_LIMIT
+
+
+def _long_paths_enabled() -> bool:
+    """Whether Windows allows long paths (a setting the Python installer offers)."""
+    if sys.platform != "win32":
+        return False
+    import winreg
+
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\FileSystem"
+        ) as key:
+            return bool(winreg.QueryValueEx(key, "LongPathsEnabled")[0])
+    except OSError:
+        return False
+
+
+def _check_free_space(folder: Path, needed: int, task: str) -> None:
+    free = shutil.disk_usage(folder).free
+    if free < needed + 200_000_000:  # and a little room to spare
+        raise DataError(
+            f"not enough free disk space to {task}: {needed / 1e9:.1f} GB are needed, "
+            f"{free / 1e9:.1f} GB are free on the disk of {folder}"
+        )
 
 
 def _sha256(path: Path) -> str:

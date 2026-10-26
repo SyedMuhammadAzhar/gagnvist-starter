@@ -12,7 +12,7 @@ from pathlib import Path
 
 from gagnvist.answering.choose_categories import Selection
 from gagnvist.data.catalogue import CatalogueEntry, Category, Dimension, TableMetadata
-from gagnvist.data.px_reader import MARKERS, Cell, PxFile
+from gagnvist.data.px_reader import MARKERS, Cell, PxError, PxFile
 
 
 @dataclass(frozen=True)
@@ -41,9 +41,16 @@ def read_numbers(
     ]
     combinations = list(itertools.product(*choices))
     data = PxFile(data_folder / entry.folder / "data.px", metadata)
-    cells = data.read_many(
-        [{d.code: c.code for d, c in combination} for combination in combinations]
-    )
+    try:
+        cells = data.read_many(
+            [{d.code: c.code for d, c in combination} for combination in combinations]
+        )
+    except KeyError as e:  # the description lists a category the data file lacks
+        raise PxError(
+            f"table {entry.table_code} ({entry.language}): {e.args[0]}, although the "
+            "table's description lists it (Statistics Iceland's description and data "
+            "disagree here)"
+        ) from None
     return [Fact(combination, cell) for combination, cell in zip(combinations, cells, strict=True)]
 
 
