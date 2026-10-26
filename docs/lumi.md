@@ -28,7 +28,10 @@ The organizers invite you to the hackathon's LUMI project. To accept:
    ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_lumi
    ```
 
-   On Windows, in PowerShell: `ssh-keygen -t ed25519 -f $HOME\.ssh\id_ed25519_lumi`
+   On Windows, in PowerShell: `mkdir $HOME\.ssh -Force`, then
+   `ssh-keygen -t ed25519 -f $HOME\.ssh\id_ed25519_lumi`. A key made with PuTTY
+   (`.ppk`) must first be exported: in PuTTYgen, load it and choose *Conversions*,
+   *Export OpenSSH key*.
 
 2. Register the **public** key (the file ending in `.pub`) in your
    [MyAccessID profile](https://mms.myaccessid.org/): *Settings*, *SSH keys*,
@@ -72,15 +75,19 @@ passphrase each time. Give the key to your SSH agent once and it stops asking:
 | Linux   | `ssh-add ~/.ssh/id_ed25519_lumi` (if it says there is no agent: `eval "$(ssh-agent)"` first) |
 | Windows | `ssh-add $HOME\.ssh\id_ed25519_lumi` (the first time, start the agent in PowerShell *as administrator*: `Get-Service ssh-agent \| Set-Service -StartupType Automatic; Start-Service ssh-agent`) |
 
+Without an agent (on Windows it needs administrator rights once), everything still
+works: ssh asks for the passphrase each time it connects, also when the tunnel
+reconnects, in the terminal where `gagnvist lumi connect` runs.
+
 ## 4. Check your setup
 
 ```bash
 gagnvist lumi check
 ```
 
-It logs in, and tells you whether your account is in the hackathon's project and
-whether the shared models are running. If it reports a problem, see
-[Troubleshooting](#9-troubleshooting).
+It logs in, and tells you whether your account is in the hackathon's project, whether
+the shared models are running, and, if they are, whether they accept your team key. If
+it reports a problem, see [Troubleshooting](#9-troubleshooting).
 
 ## 5. The shared models
 
@@ -98,7 +105,13 @@ The tunnel stays open until you press Ctrl+C.
 ```
 
 Work in a second terminal: `gagnvist try-models`, `gagnvist ask "..."`, and so on.
-If your laptop sleeps, the tunnel reconnects by itself.
+If your laptop sleeps, the tunnel reconnects by itself. If the organizers restart the
+shared models, perhaps on another node, the tunnel notices within about two minutes and
+follows them; meanwhile commands say that the connection broke off.
+
+The tunnel uses port 8765 on your computer. If another program already uses it (the
+Anki add-on AnkiConnect does, for example), add `GAGNVIST_LOCAL_PORT=8790` (or another
+free port) to `.env`.
 
 The shared models only answer requests that carry your team key, and you cannot stop
 or change them: only the organizers can. They are the same for every team, so you can
@@ -228,12 +241,24 @@ gagnvist lumi connect --job <job id>     # prints GAGNVIST_CHAT_MODEL=numbers-v1
 | `LUMI did not accept the SSH key` | Check `GAGNVIST_LUMI_USERNAME` and `GAGNVIST_SSH_KEY` in `.env`. A key added to MyAccessID in the last few hours may not have reached LUMI yet. |
 | `set ... in .env` | Copy `example.env` to `.env`, in the starter kit's folder, and fill in its values. |
 | `.env, line ...: expected NAME=value` | A line of `.env` is misspelt: compare it with `example.env`. |
-| `ssh refuses to use ...: only you may read it` | On macOS or Linux: `chmod 600 ~/.ssh/id_ed25519_lumi`. |
+| `ssh refuses to use ... because others may read it` | On macOS or Linux: `chmod 600 ~/.ssh/id_ed25519_lumi`. On Windows, in PowerShell: `icacls $HOME\.ssh\id_ed25519_lumi /inheritance:r /grant:r "$($env:USERNAME):R"`. |
+| `ssh cannot read the key` | `GAGNVIST_SSH_KEY` must be the private key (not the `.pub` file), in OpenSSH format (a PuTTY `.ppk` key must be exported first, see [step 1](#1-your-lumi-account)). |
+| `refused the key` / `GAGNVIST_TEAM_KEY ... has N characters` | Copy your team key into `.env` again: 48 letters and digits, without quote marks or spaces. The tunnel can stay open. |
+| `.env is saved as UTF-16` / `is not saved as UTF-8` | Save `.env` again with the encoding UTF-8 (Notepad: *File*, *Save as*, *Encoding*). |
+| `found .env.txt but no .env` | Rename the file to `.env`. |
+| `running scripts is disabled` (PowerShell) | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then activate again. |
+| `gagnvist: command not found` / `not recognized` | Activate the environment in this terminal: `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`). |
+| `the connection ... broke off` | The shared models may have been restarted: `gagnvist lumi connect` follows them within a couple of minutes; if not, stop it with Ctrl+C and start it again. |
+| `channel 1: open failed: connect failed: Connection refused` (in the `lumi connect` terminal) | Nothing to do: the shared models were being restarted, and the tunnel waits for them. Ask again once they answer. |
+| `the model server cannot answer yet` / `still loading` | The shared models are starting, or one was restarted after a crash; that takes one or two minutes. Ask again in a minute. |
+| `the model server is busy` | Your team already has 8 requests in progress; wait, or send fewer at a time from your own code. |
+| `too deep for Windows` | Move the starter kit to a short folder, such as `C:\gagnvist-starter`, and run `gagnvist get-data` again. |
 | `could not verify the identity of lumi.csc.fi` | Log in once by hand ([step 2](#2-log-in-once-by-hand)). |
 | `the ssh program was not found` | Windows: *Settings*, *Apps*, *Optional features*, add *OpenSSH Client*. Linux: install `openssh-client`. |
 | `your account is not (yet) a member of the project` | Accept the invitation to the project; ask the organizers if it does not arrive. |
 | `the shared models are not running right now` | Tell the organizers. |
-| `port 8765 on this computer is already in use` | Another program uses that port; perhaps a tunnel you opened earlier. Close it, or set another `local_port` in `gagnvist.toml`. |
+| `port 8765 on this computer is already in use` | The message says whether it is a tunnel left open (and how to stop it) or another program. Or add `GAGNVIST_LOCAL_PORT=8790` to `.env`. |
+| `this computer does not let programs use port ...` | Windows reserves that port: add `GAGNVIST_LOCAL_PORT=8790` (or another port) to `.env`. |
 | `job ... is still waiting for a GPU` | LUMI is busy; it starts when a GPU is free. `--partition dev-g` starts sooner for jobs of at most 3 hours. |
 | `job ... is still loading its model` | Wait a minute. If it takes longer than about ten minutes, look at `gagnvist lumi log JOB`. |
 | A server job ends at once | `gagnvist lumi log JOB` shows why: often the model does not fit (try `--gpus 2` or a shorter `--context`), or the folder is not a complete model. |

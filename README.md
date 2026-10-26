@@ -54,12 +54,26 @@ detail.
 
 ## Quick start
 
-You need Python 3.11 or newer, git, an SSH client (included with macOS, Linux and
-Windows 10 or later), and about 7 GB of free disk space: the repository is about
-300 MB, as the data comes with it, and the unpacked data takes 5.7 GB. Before the hackathon you also get a LUMI account and your team's
-key: see [docs/lumi.md](docs/lumi.md).
+You need:
 
-**1. Install**
+- **Python 3.11 or newer.** Check with `python3 --version` (Windows: `py --version`).
+  The Python that comes with macOS is too old: install the newest from
+  [python.org](https://www.python.org/downloads/).
+- **git.** On a Mac, the first `git` command offers to install Apple's command line
+  tools: accept. On Windows, install [Git for Windows](https://git-scm.com/download/win).
+- **An SSH client**, included with macOS, Linux and Windows 10 or later.
+- **About 7 GB of free disk space**: the repository is about 300 MB, as the data comes
+  with it, and the unpacked data takes 5.7 GB.
+- **A LUMI account and your team's key**, which you get before the hackathon: see
+  [docs/lumi.md](docs/lumi.md).
+
+Do steps 1 to 3 before the hackathon if you can: they download about 300 MB and unpack
+5.7 GB, which is slow on a busy network.
+
+**1. Install.** Put the starter kit in a short folder that is not synced by iCloud,
+OneDrive or Dropbox, for example `~/gagnvist-starter` on a Mac or `C:\gagnvist-starter`
+on Windows: a sync service would upload the 5.7 GB of data, and on Windows a folder
+path of more than about 100 characters makes the data paths too long.
 
 ```bash
 git clone https://github.com/SyedMuhammadAzhar/gagnvist-starter.git
@@ -69,8 +83,17 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e .
 ```
 
+- On Windows, if PowerShell says that *running scripts is disabled*, run
+  `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once and activate again (or use
+  Command Prompt, where `.venv\Scripts\activate` works as it is).
+- While the repository is private, git asks you to sign in to GitHub with the account
+  the organizers added. On Windows a browser window opens. On a Mac, the password git
+  asks for is a [personal access token](https://github.com/settings/tokens), not your
+  GitHub password; [GitHub Desktop](https://desktop.github.com/) avoids that.
+
 **2. Fill in your settings.** Copy `example.env` to `.env` and fill in its three
-values: your LUMI username, the path to your own SSH key for LUMI, and your team's key.
+values: your LUMI username, the path to your own SSH key for LUMI, and your team's key
+(48 letters and digits: copy it exactly, without quote marks or spaces).
 
 ```bash
 cp example.env .env                # Windows: copy example.env .env
@@ -81,6 +104,9 @@ cp example.env .env                # Windows: copy example.env .env
 > settings, the same for everyone, are in `gagnvist.toml`, which comes with the code.
 > Never put a key anywhere else in the repository. Your SSH key is yours alone, not
 > even for your teammates; your team key is for your team only.
+
+On Windows, save `.env` from Notepad as *All files* with the encoding *UTF-8*, so that
+it is not called `.env.txt`.
 
 **3. Unpack the data.** The data comes with the repository: Statistics Iceland's
 tables in both languages, as they were on 18 October 2026, zipped in `data-release/`.
@@ -99,16 +125,24 @@ gagnvist lumi check
 gagnvist lumi connect
 ```
 
-**5. Ask**, in a second terminal:
+`gagnvist lumi check` also tries your team key. If the organizers restart the shared
+models, the tunnel finds them again by itself within a couple of minutes.
+
+**5. Ask**, in a second terminal. Every new terminal needs the environment activated
+again: go to the starter kit's folder and run `source .venv/bin/activate` (Windows:
+`.venv\Scripts\activate`). Without it, the `gagnvist` command is not found.
 
 ```console
 $ gagnvist ask "How many people live in Reykjavík?"
-<the model's answer, in a sentence or two>
+In 2026, the total population of Reykjavík is 139,804.
 
-Source: Statistics Iceland, table MAN02005 "Population by municipality, age and sex 1998-2026 - Division into municipalites as of 1 January 2026" (updated 2026-03-12): https://px.hagstofa.is/pxen/api/v1/en/Ibuar/mannfjoldi/2_byggdir/sveitarfelog/MAN02005.px
+Source: Statistics Iceland, table MAN03270 "Population in Reykjavík by districts, sex and age 1 January 1998-2026" (updated 2026-03-12): https://px.hagstofa.is/pxen/api/v1/en/Ibuar/mannfjoldi/2_byggdir/Byggdakjarnarhverfi/MAN03270.px
 Numbers used:
-  Municipality: Reykjavikurborg; Age: Total; Year: 2026; Sex: Total = 139804
+  Districts: Total; Age: Total; Year: 2026; Sex: Total = 139804
 ```
+
+The model words its answer in its own way; the source and the numbers come from the
+program.
 
 Questions in Icelandic are answered in Icelandic, from the Icelandic tables:
 `gagnvist ask "Hve margir búa í Reykjavík?"`. Add `--show-steps` to see the tables the
@@ -231,7 +265,7 @@ GAGNVIST_EMBEDDINGS_URL=http://127.0.0.1:8766/v1
 GAGNVIST_EMBEDDINGS_KEY=test
 ```
 
-set `[search] index = "local/index-standin"` in `gagnvist.toml`, and run
+add `GAGNVIST_SEARCH_INDEX=local/index-standin` to `.env`, and run
 `gagnvist build-vectors`. Its answers only repeat the numbers it is given.
 
 ## Data and licences

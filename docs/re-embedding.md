@@ -25,13 +25,13 @@ the shipped one in `index/`, and build yours in a folder of its own.
    the years the table covers, or its dataset, and let `gagnvist build-cards` write
    the folder. Keep cards short: a card of a few hundred words says less, to an
    embedding model, than a card of a few dozen.
-2. Point `gagnvist.toml` to your cards and to a new index folder, and build the index
-   there (a few minutes):
+2. Point the starter kit to your cards and to a new index folder, in `.env` (not in
+   `gagnvist.toml`, which `git pull` updates), and build the index there (a few
+   minutes):
 
-   ```toml
-   [search]
-   index = "local/index-richer-cards"
-   cards = "local/cards-richer"
+   ```bash
+   GAGNVIST_SEARCH_INDEX=local/index-richer-cards
+   GAGNVIST_SEARCH_CARDS=local/cards-richer
    ```
 
    ```bash
@@ -39,8 +39,8 @@ the shipped one in `index/`, and build yours in a folder of its own.
    gagnvist build-vectors
    ```
 
-3. Measure: `gagnvist evaluate`. To compare with the shipped index, set
-   `index = "index"` again and evaluate once more.
+3. Measure: `gagnvist evaluate`. To compare with the shipped index, remove the two
+   lines from `.env` and evaluate once more.
 
 ## Another embedding model
 
@@ -60,11 +60,10 @@ the shipped one in `index/`, and build yours in a folder of its own.
    GAGNVIST_EMBEDDINGS_KEY=...
    ```
 
-   and a new index folder into `gagnvist.toml`:
+   and a new index folder:
 
-   ```toml
-   [search]
-   index = "local/index-e5"
+   ```bash
+   GAGNVIST_SEARCH_INDEX=local/index-e5
    ```
 
 3. `gagnvist build-vectors`, then `gagnvist evaluate`.
