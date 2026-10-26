@@ -11,17 +11,26 @@ live at different addresses ([models] in gagnvist.toml, or your own servers in .
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+import logging
+import random
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 import numpy as np
 
-from gagnvist.config import Settings
+from gagnvist.config import Settings, team_key_problem
 from gagnvist.search.vector_search import Vectors
 
 Message = dict[str, str]  # {"role": "system" | "user" | "assistant", "content": ...}
+
+log = logging.getLogger(__name__)
+
+# A busy (429) or loading (503) server is asked again this many times, waiting a little
+# longer each time; timeouts and other errors are never repeated.
+RETRIES = 3
 
 
 class ModelError(Exception):
@@ -47,6 +56,7 @@ class ModelClient:
         *,
         timeout: float = 120.0,
         http: httpx.Client | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.chat_endpoint = chat
         self.embedding_endpoint = embeddings
@@ -54,6 +64,7 @@ class ModelClient:
         # computer; the models are reached through your own tunnel to LUMI.
         self._http = http or httpx.Client(timeout=timeout, trust_env=False)
         self._timeout = timeout
+        self._sleep = sleep
 
     @classmethod
     def from_settings(cls, settings: Settings) -> ModelClient:
@@ -127,9 +138,61 @@ class ModelClient:
         return vectors
 
     def _post(self, endpoint: Endpoint, path: str, body: dict[str, Any]) -> Any:
+        for attempt in range(RETRIES + 1):
+            response = self._send(endpoint, path, body)
+            if response.status_code not in (429, 503) or attempt == RETRIES:
+                break
+            wait = _wait_before_retry(response, attempt)
+            log.info(
+                "  the model server %s; asking again in %.0f s (%s of %s)",
+                "is busy" if response.status_code == 429 else "cannot answer yet",
+                wait,
+                attempt + 1,
+                RETRIES,
+            )
+            self._sleep(wait)
+        url = f"{endpoint.url.rstrip('/')}/{path}"
+        if response.status_code in (401, 403):
+            hint = team_key_problem(endpoint.key)
+            raise ModelError(
+                f"the model server at {endpoint.url} refused the key: check the key in .env "
+                "(GAGNVIST_TEAM_KEY, or GAGNVIST_CHAT_KEY / GAGNVIST_EMBEDDINGS_KEY for a "
+                "server of your own)"
+                + (
+                    f". If it is your team key: {hint}"
+                    if hint and endpoint.url.startswith("http://127.0.0.1")
+                    else ""
+                )
+            )
+        if response.status_code == 404:
+            raise ModelError(f"{url} or the model {endpoint.model!r} was not found on the server")
+        if response.status_code == 429:
+            raise ModelError(
+                f"the model server is busy: {_server_message(response) or 'too many requests'}. "
+                "Wait a moment and try again; if your own code sends many requests at once, "
+                "send fewer at a time"
+            )
+        if response.status_code == 503:
+            message = _server_message(response) or "unavailable"
+            raise ModelError(
+                f"the model server cannot answer yet: {message}. Wait a minute and try again"
+            )
+        if response.status_code >= 400:
+            raise ModelError(
+                f"the model server answered {response.status_code}: "
+                f"{_server_message(response) or response.text:.300}"
+            )
+        try:
+            return response.json()
+        except ValueError:
+            raise ModelError(
+                f"the model server's answer is not JSON: {response.text:.300}"
+            ) from None
+
+    def _send(self, endpoint: Endpoint, path: str, body: dict[str, Any]) -> httpx.Response:
         url = f"{endpoint.url.rstrip('/')}/{path}"
         try:
-            response = self._http.post(
+            return self._http.post(
                 url, json=body, headers={"Authorization": f"Bearer {endpoint.key}"}
             )
         except httpx.ConnectError:
@@ -146,29 +209,42 @@ class ModelClient:
             raise ModelError(f"{endpoint.url} is not a valid address (http://...)") from None
         except httpx.HTTPError as e:  # e.g. the tunnel is open, but no server behind it
             raise ModelError(
-                f"the connection to {endpoint.url} broke off ({type(e).__name__}): is the "
-                "model server running? (see `gagnvist lumi jobs`)"
+                f"the connection to {endpoint.url} broke off ({type(e).__name__}): the tunnel "
+                "may lead to a server that has stopped or moved. Stop `gagnvist lumi connect` "
+                "(Ctrl+C) and start it again; `gagnvist lumi check` says whether the shared "
+                "models are running"
             ) from None
-        if response.status_code in (401, 403):
+        except UnicodeError:  # httpx sends only plain ASCII in headers
             raise ModelError(
-                f"the model server at {endpoint.url} refused the key: check the key in .env "
-                "(GAGNVIST_TEAM_KEY, or GAGNVIST_CHAT_KEY / GAGNVIST_EMBEDDINGS_KEY for a "
-                "server of your own)"
-            )
-        if response.status_code == 404:
-            raise ModelError(f"{url} or the model {endpoint.model!r} was not found on the server")
-        if response.status_code in (429, 503):
-            raise ModelError("the model server is busy; wait a moment and try again")
-        if response.status_code >= 400:
-            raise ModelError(
-                f"the model server answered {response.status_code}: {response.text:.300}"
-            )
-        try:
-            return response.json()
-        except ValueError:
-            raise ModelError(
-                f"the model server's answer is not JSON: {response.text:.300}"
+                "the key in .env contains characters other than letters and digits (copied "
+                "quote marks or spaces?): copy the key again"
             ) from None
+
+
+def _wait_before_retry(response: httpx.Response, attempt: int) -> float:
+    """Seconds to wait before asking a busy server again: what it asks for (Retry-After,
+    at most 30 s), or 2, 4, 8 s, with a little randomness so that many clients do not
+    all come back at the same moment."""
+    try:
+        asked = float(response.headers.get("retry-after", ""))
+    except ValueError:
+        asked = 0.0
+    return min(max(asked, 2.0**attempt * 2), 30.0) + random.uniform(0, 1)
+
+
+def _server_message(response: httpx.Response) -> str:
+    """The error message in a server's JSON answer ({"error": "..."} from the gateway,
+    {"message": ...} or {"error": {"message": ...}} from vLLM), or ""."""
+    try:
+        answer = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(answer, dict):
+        return ""
+    error = answer.get("error", answer.get("message", ""))
+    if isinstance(error, dict):
+        error = error.get("message", "")
+    return str(error)[:300]
 
 
 def _message_content(reply: Any) -> str:

@@ -20,8 +20,12 @@ CHAT = Endpoint("http://chat.test/v1", "chat-key", "chat-model")
 EMBEDDINGS = Endpoint("http://embed.test/v1", "embed-key", "embed-model")
 
 
-def client_answering(handler: Handler) -> ModelClient:
-    return ModelClient(CHAT, EMBEDDINGS, http=httpx.Client(transport=httpx.MockTransport(handler)))
+def client_answering(handler: Handler, waits: list[float] | None = None) -> ModelClient:
+    """A client whose server is ``handler``; it does not really wait before a retry, but
+    notes each wait in ``waits``."""
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    note = waits.append if waits is not None else (lambda seconds: None)
+    return ModelClient(CHAT, EMBEDDINGS, http=http, sleep=note)
 
 
 def chat_reply(content: str) -> httpx.Response:
@@ -89,13 +93,72 @@ def test_embed_returns_vectors_in_the_order_of_the_texts() -> None:
         (403, "refused the key"),
         (404, "not found"),
         (429, "busy"),
-        (503, "busy"),
+        (503, "cannot answer yet"),
         (500, "answered 500"),
     ],
 )
 def test_server_errors_are_explained(status: int, message: str) -> None:
     client = client_answering(lambda request: httpx.Response(status, text="oops"))
     with pytest.raises(ModelError, match=message):
+        client.chat([{"role": "user", "content": "?"}])
+
+
+def test_a_busy_server_is_asked_again_and_its_wait_respected() -> None:
+    answers = [
+        httpx.Response(429, json={"error": "busy"}, headers={"Retry-After": "5"}),
+        httpx.Response(503, json={"error": "loading"}),
+        chat_reply("fine"),
+    ]
+    waits: list[float] = []
+    client = client_answering(lambda request: answers.pop(0), waits)
+    assert client.chat([{"role": "user", "content": "?"}]) == "fine"
+    assert len(waits) == 2
+    assert 5 <= waits[0] < 6  # as the server asked
+    assert 4 <= waits[1] < 5  # the second wait: 4 s and a little randomness
+
+
+def test_a_server_that_stays_busy_gives_its_own_message() -> None:
+    waits: list[float] = []
+    client = client_answering(
+        lambda request: httpx.Response(
+            429, json={"error": "your team already has 8 requests in progress"}
+        ),
+        waits,
+    )
+    with pytest.raises(ModelError, match="busy: your team already has 8 requests in progress"):
+        client.chat([{"role": "user", "content": "?"}])
+    assert len(waits) == 3  # asked four times in all
+
+
+def test_other_errors_are_not_repeated() -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(500, json={"message": "out of memory"})
+
+    with pytest.raises(ModelError, match="answered 500: out of memory"):
+        client_answering(handler).chat([{"role": "user", "content": "?"}])
+    assert len(calls) == 1
+
+
+def test_a_refused_team_key_is_described() -> None:
+    client = ModelClient(
+        Endpoint("http://127.0.0.1:8765/v1", "paste-it-here", "m"),
+        EMBEDDINGS,
+        http=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(401))),
+    )
+    with pytest.raises(ModelError, match="it has 13 characters"):
+        client.chat([{"role": "user", "content": "?"}])
+
+
+def test_a_key_with_typographic_quotes_is_explained_not_a_crash() -> None:
+    client = ModelClient(
+        Endpoint("http://127.0.0.1:8765/v1", "\u201ckey\u201d", "m"),
+        EMBEDDINGS,
+        http=httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200))),
+    )
+    with pytest.raises(ModelError, match="copy the key again"):
         client.chat([{"role": "user", "content": "?"}])
 
 
