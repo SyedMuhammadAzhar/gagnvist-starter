@@ -118,7 +118,9 @@ gagnvist get-data
 gagnvist build-index
 ```
 
-**4. Connect to the shared models,** and leave that terminal open:
+**4. Connect to the shared models,** and leave that terminal open. The first time on
+this computer, log in to LUMI once by hand and give your key to the SSH agent, as in
+[docs/lumi.md](docs/lumi.md#2-log-in-once-by-hand) steps 2 and 3.
 
 ```bash
 gagnvist lumi check
