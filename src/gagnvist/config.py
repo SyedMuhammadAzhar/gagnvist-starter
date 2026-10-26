@@ -16,6 +16,7 @@ be downloaded and indexed before LUMI access is set up.
 from __future__ import annotations
 
 import os
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,7 +36,18 @@ PERSONAL_SETTINGS = {
     "GAGNVIST_EMBEDDINGS_MODEL": ("models", "embeddings"),
     "GAGNVIST_EMBEDDINGS_URL": ("models", "embeddings_url"),
     "GAGNVIST_EMBEDDINGS_KEY": ("models", "embeddings_key"),
+    # To change these without editing gagnvist.toml (which `git pull` updates):
+    "GAGNVIST_LOCAL_PORT": ("shared_services", "local_port"),
+    "GAGNVIST_SEARCH_INDEX": ("search", "index"),
+    "GAGNVIST_SEARCH_CARDS": ("search", "cards"),
 }
+
+# Team keys are 48 letters and digits (hexadecimal), made by the organizers.
+TEAM_KEY_LENGTH = 48
+_TEAM_KEY = re.compile(r"[0-9a-f]{48}")
+# Characters that sneak in when a key is copied from a chat or a document.
+_INVISIBLE = "\u200b\u200c\u200d\u2060\ufeff\u00a0"
+_QUOTES = {('"', '"'), ("'", "'"), ("\u201c", "\u201d"), ("\u2018", "\u2019"), ("\u201e", "\u201c")}
 
 # Values from the example files that mean "not filled in yet".
 _EXAMPLE_VALUES = {
@@ -126,12 +138,31 @@ class Settings:
                 f"your SSH key was not found at {self.lumi.ssh_key} "
                 "(check GAGNVIST_SSH_KEY in .env)"
             )
+        if self.lumi.ssh_key.suffix == ".pub":
+            raise ConfigError(
+                f"GAGNVIST_SSH_KEY points to {self.lumi.ssh_key.name}, the public half of the "
+                "key: give the private key, the same name without .pub"
+            )
+        with self.lumi.ssh_key.open("rb") as f:
+            if f.read(20).startswith(b"PuTTY-User-Key-File"):
+                raise ConfigError(
+                    f"{self.lumi.ssh_key} is a PuTTY key, which ssh cannot read: in PuTTYgen, "
+                    "load it and choose Conversions, Export OpenSSH key (see docs/lumi.md)"
+                )
 
     def require_team_key(self) -> None:
-        """Raise ConfigError unless the team key is filled in."""
+        """Raise ConfigError unless the team key is filled in and can be sent.
+
+        A key that is filled in but does not look like a team key is allowed here (see
+        :func:`team_key_problem`, which ``gagnvist lumi check`` reports)."""
         key = self.shared_services.team_key
         if not key or key in _EXAMPLE_VALUES:
             raise ConfigError(_personal("GAGNVIST_TEAM_KEY", "your team's key"))
+        if not key.isascii() or any(c.isspace() for c in key):
+            raise ConfigError(
+                f"GAGNVIST_TEAM_KEY in .env is not a key: {team_key_problem(key)}. "
+                "Copy the key again, exactly as the organizers sent it."
+            )
 
     def require_gateway(self) -> None:
         """Raise ConfigError unless the organizers have said where the shared models run."""
@@ -162,11 +193,16 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
             ) from e
     base = path.resolve().parent
     env_file = base / ENV_FILE
+    if not env_file.is_file() and (base / f"{ENV_FILE}.txt").is_file():
+        raise ConfigError(
+            f"found {ENV_FILE}.txt but no {ENV_FILE}: rename it to {ENV_FILE} (Windows hides "
+            "the .txt ending, and Notepad adds it; in Notepad choose 'All files' when saving)"
+        )
     personal = read_env_file(env_file) if env_file.is_file() else {}
     personal.update({name: os.environ[name] for name in PERSONAL_SETTINGS if name in os.environ})
     for name, value in personal.items():
         section, key = PERSONAL_SETTINGS[name]
-        raw.setdefault(section, {})[key] = value
+        raw.setdefault(section, {})[key] = _port_text(name, value) if key == "local_port" else value
 
     lumi = _section(raw, "lumi")
     shared = _section(raw, "shared_services")
@@ -178,7 +214,7 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
     return Settings(
         lumi=LumiSettings(
             username=_text(lumi, "lumi", "username", required=False),
-            ssh_key=base / Path(ssh_key).expanduser() if ssh_key else None,
+            ssh_key=_key_path(base, ssh_key) if ssh_key else None,
             host=_text(lumi, "lumi", "host"),
             project=_text(lumi, "lumi", "project"),
             container=_text(lumi, "lumi", "container"),
@@ -212,6 +248,22 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
     )
 
 
+def team_key_problem(key: str) -> str | None:
+    """What is wrong with a team key, in words; None if it looks right."""
+    if _TEAM_KEY.fullmatch(key):
+        return None
+    found = [f"it has {len(key)} characters (a team key has {TEAM_KEY_LENGTH})"]
+    if any(c in "\"'\u201c\u201d\u2018\u2019\u201e" for c in key):
+        found.append("it contains quote marks")
+    if any(c.isspace() for c in key):
+        found.append("it contains spaces")
+    if not key.isascii():
+        found.append("it contains characters other than letters and digits")
+    elif len(key) == TEAM_KEY_LENGTH and not found[1:]:
+        found = ["it contains characters other than 0-9 and a-f"]
+    return ", ".join(found)
+
+
 def read_env_file(path: Path) -> dict[str, str]:
     """The settings in a .env file: one ``NAME=value`` per line.
 
@@ -219,22 +271,57 @@ def read_env_file(path: Path) -> dict[str, str]:
     quotes; otherwise a `` #`` and everything after it is a comment. Every name must be
     one of PERSONAL_SETTINGS, so that a misspelt name is reported, not ignored.
     """
+    raw = path.read_bytes()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        raise ConfigError(
+            f"{path} is saved as UTF-16 (as Windows PowerShell's `>` and Notepad's "
+            "'Unicode' do): save it as UTF-8 instead (in Notepad: File, Save as, Encoding: UTF-8)"
+        )
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise ConfigError(
+            f"{path} is not saved as UTF-8: save it as UTF-8 (in Notepad: File, Save as, "
+            "Encoding: UTF-8)"
+        ) from None
     values = {}
-    for number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), 1):
+    for number, line in enumerate(text.splitlines(), 1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
         name, equals, value = line.removeprefix("export ").partition("=")
-        name, value = name.strip(), value.strip()
+        name, value = name.strip(), value.strip(_INVISIBLE + " \t")
         if not equals or name not in PERSONAL_SETTINGS:
             known = ", ".join(PERSONAL_SETTINGS)
             raise ConfigError(f"{path}, line {number}: expected NAME=value, NAME one of {known}")
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
+        if len(value) >= 2 and (value[0], value[-1]) in _QUOTES:
+            value = value[1:-1].strip(_INVISIBLE)
         else:
-            value = value.split(" #", 1)[0].strip()
+            value = value.split(" #", 1)[0].strip(_INVISIBLE + " \t")
         values[name] = value
     return values
+
+
+def _key_path(base: Path, text: str) -> Path:
+    """The SSH key's path: ``~`` is your home folder, and a relative path is relative to
+    the folder gagnvist.toml is in."""
+    if text.startswith("~") and os.sep == "/":
+        text = "~/" + text[1:].lstrip("\\/").replace("\\", "/")  # ~\.ssh\key on macOS
+    try:
+        return base / Path(text).expanduser()
+    except RuntimeError:  # no home folder could be found for ~
+        raise ConfigError(
+            f"GAGNVIST_SSH_KEY={text}: the ~ could not be turned into your home folder; "
+            "write the whole path instead"
+        ) from None
+
+
+def _port_text(name: str, value: str) -> int:
+    """A port number given as text in .env, as a number (checked later like any port)."""
+    try:
+        return int(value)
+    except ValueError:
+        raise ConfigError(f"{name} in .env must be a port number, 1024 to 65535") from None
 
 
 def _personal(name: str, what: str) -> str:

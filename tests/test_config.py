@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from conftest import SHARED_SETTINGS, write_settings
 
-from gagnvist.config import PERSONAL_SETTINGS, ConfigError, load_settings
+from gagnvist.config import PERSONAL_SETTINGS, ConfigError, load_settings, team_key_problem
 
 EXAMPLE_ENV = Path(__file__).parents[1] / "example.env"
 
@@ -73,7 +73,9 @@ def test_env_lines_may_have_quotes_comments_and_windows_paths(tmp_path: Path) ->
 
 def test_a_misspelt_name_in_env_is_reported(tmp_path: Path) -> None:
     write_settings(tmp_path)
-    (tmp_path / ".env").write_text("GAGNVIST_LUMI_USERNAME=jon\nGAGNVIST_TEAMKEY=x\n")
+    (tmp_path / ".env").write_text(
+        "GAGNVIST_LUMI_USERNAME=jon\nGAGNVIST_TEAMKEY=x\n", encoding="utf-8"
+    )
     with pytest.raises(ConfigError, match=r"\.env, line 2: expected NAME=value"):
         load_settings(tmp_path / "gagnvist.toml")
 
@@ -119,6 +121,85 @@ def test_the_gateway_must_be_filled_in_by_the_organizers(tmp_path: Path) -> None
 def test_the_shared_settings_hold_nothing_personal() -> None:
     shared = tomllib.loads(SHARED_SETTINGS.read_text(encoding="utf-8"))
     for section, key in PERSONAL_SETTINGS.values():
-        if key in ("chat", "embeddings"):
-            continue  # the shared models' names, which .env may replace
+        if key in ("chat", "embeddings", "local_port", "index", "cards"):
+            continue  # shared defaults, which .env may replace
         assert key not in shared.get(section, {}), f"[{section}] {key} belongs in .env"
+
+
+def test_a_env_file_saved_by_windows_tools_is_read_or_explained(tmp_path: Path) -> None:
+    config = write_settings(tmp_path)
+    env = tmp_path / ".env"
+    env.write_bytes("\ufeffGAGNVIST_LUMI_USERNAME=me\r\n".encode())  # BOM and CRLF
+    assert load_settings(config).lumi.username == "me"
+    env.write_bytes("GAGNVIST_LUMI_USERNAME=me\n".encode("utf-16"))  # PowerShell's `>`
+    with pytest.raises(ConfigError, match="UTF-16"):
+        load_settings(config)
+    env.write_bytes("GAGNVIST_SSH_KEY=C:\\Users\\\xde\xf3r\\key\n".encode("latin-1"))
+    with pytest.raises(ConfigError, match="not saved as UTF-8"):
+        load_settings(config)
+    env.unlink()
+    (tmp_path / ".env.txt").write_text("GAGNVIST_LUMI_USERNAME=me\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"rename it to \.env"):
+        load_settings(config)
+
+
+def test_a_pasted_key_loses_invisible_characters_and_quotes(tmp_path: Path) -> None:
+    key = "0123456789abcdef" * 3
+    settings = load_settings(
+        write_settings(tmp_path, {"GAGNVIST_TEAM_KEY": f"\u201c{key}\u201d\u200b"})
+    )
+    assert settings.shared_services.team_key == key
+    settings.require_team_key()
+
+
+@pytest.mark.parametrize(
+    ("key", "problem"),
+    [
+        ("0123456789abcdef" * 3, None),
+        ("team-01", "it has 7 characters (a team key has 48)"),
+        ("0123456789ABCDEF" * 3, "other than 0-9 and a-f"),
+        ("0123456789abcdef" * 3 + " x", "it contains spaces"),
+    ],
+)
+def test_team_key_problems_are_put_in_words(key: str, problem: str | None) -> None:
+    found = team_key_problem(key)
+    assert found is None if problem is None else problem in (found or "")
+
+
+def test_a_team_key_that_cannot_be_sent_is_refused(tmp_path: Path) -> None:
+    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_TEAM_KEY": "abc def"}))
+    with pytest.raises(ConfigError, match="contains spaces"):
+        settings.require_team_key()
+
+
+def test_the_port_and_search_folders_can_be_set_in_env(tmp_path: Path) -> None:
+    settings = load_settings(
+        write_settings(
+            tmp_path,
+            {
+                "GAGNVIST_LOCAL_PORT": "8790",
+                "GAGNVIST_SEARCH_INDEX": "local/my-index",
+                "GAGNVIST_SEARCH_CARDS": "local/my-cards",
+            },
+        )
+    )
+    assert settings.shared_services.local_port == 8790
+    assert settings.search.index == tmp_path / "local" / "my-index"
+    assert settings.search.cards == tmp_path / "local" / "my-cards"
+    with pytest.raises(ConfigError, match=r"GAGNVIST_LOCAL_PORT in \.env must be a port number"):
+        load_settings(write_settings(tmp_path, {"GAGNVIST_LOCAL_PORT": "eighty"}))
+
+
+def test_a_windows_style_home_path_works_on_any_system(tmp_path: Path) -> None:
+    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_SSH_KEY": "~\\.ssh\\key"}))
+    assert settings.lumi.ssh_key == Path.home() / ".ssh" / "key"
+
+
+def test_the_public_key_or_a_putty_key_is_refused(tmp_path: Path) -> None:
+    public, putty = tmp_path / "id_lumi.pub", tmp_path / "lumi.ppk"
+    public.write_text("ssh-ed25519 AAAA me", encoding="utf-8")
+    putty.write_text("PuTTY-User-Key-File-3: ssh-ed25519\n", encoding="utf-8")
+    for key, message in ((public, "public half"), (putty, "PuTTY key")):
+        env = {"GAGNVIST_LUMI_USERNAME": "me", "GAGNVIST_SSH_KEY": key.as_posix()}
+        with pytest.raises(ConfigError, match=message):
+            load_settings(write_settings(tmp_path, env)).require_lumi_access()
