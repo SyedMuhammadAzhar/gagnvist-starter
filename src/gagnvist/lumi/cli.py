@@ -12,7 +12,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from gagnvist.config import Settings
+from gagnvist.config import Settings, team_key_problem
 from gagnvist.lumi.connection import Lumi, LumiError
 from gagnvist.lumi.jobs import (
     GPU_CHOICES,
@@ -31,7 +31,7 @@ from gagnvist.lumi.jobs import (
     start_server,
     stop_job,
 )
-from gagnvist.lumi.tunnel import hold_tunnel
+from gagnvist.lumi.tunnel import hold_tunnel, try_key
 
 Command = Callable[[argparse.Namespace, Settings], int]
 
@@ -149,13 +149,32 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
         problems.append(f"the project folder /scratch/{project} cannot be seen")
     if not facts["container"]:
         problems.append(f"the container for model jobs was not found: {settings.lumi.container}")
-    if facts["gateway"]:
-        print(f"  The shared models are running (on {facts['gateway']}).")
-    else:
-        print("  The shared models are not running right now.")
     for problem in problems:
         print(f"  PROBLEM: {problem}; please tell the organizers.")
-    if problems:
+    key = settings.shared_services.team_key
+    key_problem = (
+        "it is not filled in"
+        if not key or key == "paste-your-team-key-here"
+        else team_key_problem(key)
+    )
+    if key_problem:
+        print(f"  PROBLEM: GAGNVIST_TEAM_KEY in .env: {key_problem}. Copy your team's key again.")
+    if facts["gateway"]:
+        print(f"  The shared models are running (on {facts['gateway']}).")
+        if not key_problem:
+            answer = try_key(lumi, facts["gateway"], settings.shared_services.gateway_port, key)
+            if answer.startswith("Connected"):
+                print("  Your team key works.")
+            elif "refused the key" in answer:
+                key_problem = "refused"
+                print(
+                    "  PROBLEM: the shared models refused your team key: check GAGNVIST_TEAM_KEY."
+                )
+            else:
+                print(f"  Your team key could not be tried yet: {answer}")
+    else:
+        print("  The shared models are not running right now.")
+    if problems or key_problem:
         return 1
     print("All set. Next: gagnvist lumi connect")
     return 0
@@ -180,7 +199,8 @@ def _connect(args: argparse.Namespace, settings: Settings) -> int:
         port = args.port or expected
         if port != expected:
             print(
-                f"Note: gagnvist.toml expects the tunnel to the shared models on port {expected}."
+                f"Note: the other commands look for the shared models on port {expected}; "
+                f"to use port {port}, set GAGNVIST_LOCAL_PORT={port} in .env."
             )
 
         def find_shared_models() -> tuple[str, int]:

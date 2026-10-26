@@ -24,6 +24,7 @@ from gagnvist.lumi.connection import Lumi
 USER = "testuser"
 ORGANIZER = "organizer"
 PROJECT = "project_465000001"
+TEAM_KEY = "0123456789abcdef" * 3  # shaped like a real team key: 48 hex digits
 CONTAINER = "/appl/local/laifs/containers/test/lumi-multitorch-full-test.sif"
 
 needs_posix = pytest.mark.skipif(sys.platform == "win32", reason="the job scripts are bash")
@@ -33,10 +34,10 @@ import json, os, sys
 ROOT = os.environ["FAKE_ROOT"]
 QUEUE = os.path.join(ROOT, "slurm", "queue.json")
 def load():
-    with open(QUEUE) as f:
+    with open(QUEUE, encoding="utf-8") as f:
         return json.load(f)
 def save(jobs):
-    with open(QUEUE, "w") as f:
+    with open(QUEUE, "w", encoding="utf-8") as f:
         json.dump(jobs, f)
 """
 
@@ -81,13 +82,14 @@ for argument in sys.argv[1:]:
     if files:
         sys.exit("fake sbatch: arguments after the script would be passed to the script")
     (options if argument.startswith("--") else files).append(argument)
-script = open(files[0]).read() if files else sys.stdin.read()
+script = open(files[0], encoding="utf-8").read() if files else sys.stdin.read()
 jobs = load()
 job_id = str(4000 + len(jobs) + 1)
 os.makedirs(os.path.join(ROOT, "slurm", "submitted"), exist_ok=True)
-with open(os.path.join(ROOT, "slurm", "submitted", job_id + ".sbatch"), "w") as f:
+submitted = os.path.join(ROOT, "slurm", "submitted", job_id)
+with open(submitted + ".sbatch", "w", encoding="utf-8") as f:
     f.write(script)
-with open(os.path.join(ROOT, "slurm", "submitted", job_id + ".options"), "w") as f:
+with open(submitted + ".options", "w", encoding="utf-8") as f:
     json.dump(options, f)
 name = re.search(r"^#SBATCH --job-name=(\\S+)", script, re.M).group(1)
 jobs.append({"id": job_id, "name": name, "state": "PENDING", "node": "n/a",
@@ -109,7 +111,7 @@ save(jobs)
     "singularity": """
 command = sys.argv[3:]  # after: run <container>
 def record(name, **fields):
-    with open(os.path.join(ROOT, name), "w") as f:
+    with open(os.path.join(ROOT, name), "w", encoding="utf-8") as f:
         json.dump({"argv": command, "pid": os.getpid(), "cwd": os.getcwd(), **fields}, f)
 if command[:2] == ["vllm", "serve"]:
     import http.server, socketserver, time
@@ -158,15 +160,15 @@ elif command[0] == "python" and command[1].endswith("key_proxy.py"):
     record("gatekeeper-call.json")
     os.execv(sys.executable, [sys.executable, *command[1:]])  # the real gatekeeper
 elif command[0] == "python" and command[1].endswith("finetune_lora.py"):
-    with open(command[1]) as f:
+    with open(command[1], encoding="utf-8") as f:
         record("finetune-call.json", script=f.read())
     output = command[command.index("--output") + 1]
     os.makedirs(output, exist_ok=True)
-    open(os.path.join(output, "adapter_config.json"), "w").close()
+    open(os.path.join(output, "adapter_config.json"), "w", encoding="utf-8").close()
 elif command[:2] == ["python", "-c"]:  # a download
     target = command[-1]
     os.makedirs(target, exist_ok=True)
-    with open(os.path.join(target, "config.json"), "w") as f:
+    with open(os.path.join(target, "config.json"), "w", encoding="utf-8") as f:
         json.dump({"downloaded": command[-2], "ignored": "ignore_patterns" in command[2]}, f)
 else:
     sys.exit(f"fake singularity: unexpected command {command}")
@@ -199,7 +201,7 @@ class FakeLumi:
         self.home = tmp_path / "home"
         for folder in (self.root / "slurm", self.home):
             folder.mkdir(parents=True)
-        (self.root / "slurm" / "queue.json").write_text("[]")
+        (self.root / "slurm" / "queue.json").write_text("[]", encoding="utf-8")
         container = self.root / CONTAINER.lstrip("/")
         container.parent.mkdir(parents=True)
         container.touch()
@@ -211,7 +213,7 @@ class FakeLumi:
         monkeypatch.setenv("FAKE_USER", USER)
 
         key = tmp_path / "id_ed25519_lumi"
-        key.write_text("not a real key")
+        key.write_text("not a real key", encoding="utf-8")
         shared = (Path(__file__).parents[1] / "gagnvist.toml").read_text(encoding="utf-8")
         shared = re.sub(r'(?m)^project = "[^"]*"', f'project = "{PROJECT}"', shared)
         shared = re.sub(r'(?m)^gateway_user = "[^"]*"', f'gateway_user = "{ORGANIZER}"', shared)
@@ -223,7 +225,7 @@ class FakeLumi:
         (tmp_path / ".env").write_text(
             f"GAGNVIST_LUMI_USERNAME={USER}\n"
             f"GAGNVIST_SSH_KEY={key.as_posix()}\n"
-            "GAGNVIST_TEAM_KEY=team-key\n",
+            f"GAGNVIST_TEAM_KEY={TEAM_KEY}\n",
             encoding="utf-8",
         )
         for name in ("GAGNVIST_LUMI_USERNAME", "GAGNVIST_SSH_KEY", "GAGNVIST_TEAM_KEY"):
@@ -239,7 +241,7 @@ class FakeLumi:
         """A downloaded model; with ``complete=False``, a download that never finished."""
         folder = self.mine("models", name)
         folder.mkdir(parents=True)
-        (folder / "config.json").write_text("{}")
+        (folder / "config.json").write_text("{}", encoding="utf-8")
         if complete:
             (folder / ".download-complete").touch()
         return folder
@@ -258,24 +260,26 @@ class FakeLumi:
             {"id": job_id, "name": name, "state": state, "node": node, "time_left": "3:59:00",
              "user": user}
         )  # fmt: skip
-        (self.root / "slurm" / "queue.json").write_text(json.dumps(jobs))
+        (self.root / "slurm" / "queue.json").write_text(json.dumps(jobs), encoding="utf-8")
 
     def jobs(self) -> list[dict[str, str]]:
-        return json.loads((self.root / "slurm" / "queue.json").read_text())
+        return json.loads((self.root / "slurm" / "queue.json").read_text(encoding="utf-8"))
 
     def submitted(self, job_id: str) -> str:
-        return (self.root / "slurm" / "submitted" / f"{job_id}.sbatch").read_text()
+        return (self.root / "slurm" / "submitted" / f"{job_id}.sbatch").read_text(encoding="utf-8")
 
     def sbatch_options(self, job_id: str) -> list[str]:
         options: list[str] = json.loads(
-            (self.root / "slurm" / "submitted" / f"{job_id}.options").read_text()
+            (self.root / "slurm" / "submitted" / f"{job_id}.options").read_text(encoding="utf-8")
         )
         return options
 
     def write_address(self, job_id: str, **fields: object) -> None:
         folder = self.home / ".gagnvist" / "jobs"
         folder.mkdir(parents=True, exist_ok=True)
-        (folder / f"{job_id}.json").write_text(json.dumps({"job": job_id, **fields}))
+        (folder / f"{job_id}.json").write_text(
+            json.dumps({"job": job_id, **fields}), encoding="utf-8"
+        )
 
 
 def make_recording_ssh(folder: Path) -> Path:
@@ -286,7 +290,7 @@ def make_recording_ssh(folder: Path) -> Path:
         folder / "ssh",
         f"""#!{sys.executable}
 import json, os, sys
-with open(os.environ["FAKE_SSH_RECORD"], "w") as f:
+with open(os.environ["FAKE_SSH_RECORD"], "w", encoding="utf-8") as f:
     json.dump(sys.argv[1:], f)
 sys.stderr.write(os.environ.get("FAKE_SSH_ERROR", ""))
 sys.exit(int(os.environ.get("FAKE_SSH_STATUS", "0")))
@@ -296,5 +300,5 @@ sys.exit(int(os.environ.get("FAKE_SSH_STATUS", "0")))
 
 
 def _write_program(path: Path, text: str) -> None:
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR)

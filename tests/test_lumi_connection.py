@@ -25,7 +25,7 @@ def lumi(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recording_ssh: Path) -
 
 
 def ssh_arguments(tmp_path: Path) -> list[str]:
-    arguments: list[str] = json.loads((tmp_path / "ssh-arguments.json").read_text())
+    arguments: list[str] = json.loads((tmp_path / "ssh-arguments.json").read_text(encoding="utf-8"))
     return arguments
 
 
@@ -52,6 +52,16 @@ def test_a_tunnel_listens_on_this_computer_only(
     [
         ("testuser@lumi.example: Permission denied (publickey).", "did not accept the SSH key"),
         ("WARNING: UNPROTECTED PRIVATE KEY FILE!", "chmod 600"),
+        # as ssh really prints them: the reason first, then "Permission denied"
+        (
+            'Load key "k": bad permissions\ntestuser@lumi.example: Permission denied (publickey).',
+            "icacls",
+        ),
+        (
+            'Load key "k": invalid format\ntestuser@lumi.example: Permission denied (publickey).',
+            "OpenSSH format",
+        ),
+        ('Load key "k": incorrect passphrase supplied to decrypt private key', "passphrase"),
         ("Host key verification failed.", "accept LUMI's host key"),
         ("ssh: Could not resolve hostname lumi.example", "connected to the internet"),
         ("ssh: connect to host lumi.example port 22: Operation timed out", "timed out"),

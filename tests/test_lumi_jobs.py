@@ -57,7 +57,9 @@ def test_the_gateway_is_found_by_its_owner_and_name(fake_lumi: FakeLumi) -> None
 def test_a_model_is_downloaded_once(fake_lumi: FakeLumi, capfd: pytest.CaptureFixture[str]) -> None:
     path = download_model(fake_lumi.lumi, fake_lumi.settings, "Qwen/Qwen2.5-7B-Instruct", "qwen7")
     assert path == f"/scratch/{PROJECT}/{USER}/gagnvist/models/qwen7"
-    config = json.loads(fake_lumi.mine("models", "qwen7", "config.json").read_text())
+    config = json.loads(
+        fake_lumi.mine("models", "qwen7", "config.json").read_text(encoding="utf-8")
+    )
     assert config == {"downloaded": "Qwen/Qwen2.5-7B-Instruct", "ignored": True}
     assert fake_lumi.mine("models", "qwen7", ".download-complete").exists()
     download_model(fake_lumi.lumi, fake_lumi.settings, "Qwen/Qwen2.5-7B-Instruct", "qwen7")
@@ -98,7 +100,7 @@ def test_a_folder_that_is_not_yours_is_refused(
 
     teammate = fake_lumi.root / "scratch" / PROJECT / "teammate" / "gagnvist" / "models" / "m"
     teammate.mkdir(parents=True)
-    (teammate / "config.json").write_text("{}")
+    (teammate / "config.json").write_text("{}", encoding="utf-8")
     request = FinetuneRequest(
         model=f"/scratch/{PROJECT}/teammate/gagnvist/models/m", data=_data(tmp_path), name="r"
     )
@@ -141,7 +143,7 @@ def test_an_adapter_is_served_under_its_own_name(fake_lumi: FakeLumi) -> None:
     fake_lumi.add_model("qwen7")
     adapter = fake_lumi.mine("finetune", "my-run", "adapter")
     adapter.mkdir(parents=True)
-    (adapter / "adapter_config.json").write_text("{}")
+    (adapter / "adapter_config.json").write_text("{}", encoding="utf-8")
     request = ServerRequest("chat", "qwen7", adapter="my-run")
     script = fake_lumi.submitted(start_server(fake_lumi.lumi, fake_lumi.settings, request))
     lora = f"--lora-modules my-run=/scratch/{PROJECT}/{USER}/gagnvist/finetune/my-run/adapter"
@@ -198,7 +200,7 @@ def test_requests_outside_the_rules_are_refused_without_running_anything(
 def test_a_teammates_model_can_be_named_by_its_full_path(fake_lumi: FakeLumi) -> None:
     folder = fake_lumi.root / "scratch" / PROJECT / "teammate" / "gagnvist" / "models" / "m"
     folder.mkdir(parents=True)
-    (folder / "config.json").write_text("{}")
+    (folder / "config.json").write_text("{}", encoding="utf-8")
     full_path = f"/scratch/{PROJECT}/teammate/gagnvist/models/m"
     job = start_server(fake_lumi.lumi, fake_lumi.settings, ServerRequest("chat", full_path))
     assert f"vllm serve {full_path}" in fake_lumi.submitted(job)
@@ -280,7 +282,9 @@ def test_you_can_stop_your_own_job_but_not_anybody_elses(fake_lumi: FakeLumi) ->
 def test_the_end_of_a_log_is_shown(fake_lumi: FakeLumi) -> None:
     logs = fake_lumi.home / ".gagnvist" / "logs"
     logs.mkdir(parents=True)
-    (logs / "gagnvist-chat-601.log").write_text("".join(f"line {n}\n" for n in range(100)))
+    (logs / "gagnvist-chat-601.log").write_text(
+        "".join(f"line {n}\n" for n in range(100)), encoding="utf-8"
+    )
     assert job_log(fake_lumi.lumi, "601", lines=3) == "line 97\nline 98\nline 99\n"
     with pytest.raises(LumiError, match="no log for job 602"):
         job_log(fake_lumi.lumi, "602")
@@ -289,7 +293,8 @@ def test_the_end_of_a_log_is_shown(fake_lumi: FakeLumi) -> None:
 def _data(tmp_path: Path) -> Path:
     data = tmp_path / "train.jsonl"
     data.write_text(
-        '{"messages": [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]}\n'
+        '{"messages": [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]}\n',
+        encoding="utf-8",
     )
     return data
 
@@ -303,7 +308,7 @@ def test_finetuning_uploads_the_data_and_carries_the_script_in_the_job(
     job = start_finetune(fake_lumi.lumi, fake_lumi.settings, request)
     run = fake_lumi.mine("finetune", "run-1")
     assert sorted(p.name for p in run.iterdir()) == ["train.jsonl"]  # nothing to run lies here
-    assert (run / "train.jsonl").read_text() == data.read_text()
+    assert (run / "train.jsonl").read_text(encoding="utf-8") == data.read_text(encoding="utf-8")
     script = fake_lumi.submitted(job)
     assert "#SBATCH --job-name=gagnvist-finetune" in script
     assert "--epochs 2 --rank 32 --learning-rate 0.0002" in script
@@ -337,7 +342,9 @@ def test_every_template_renders_completely_and_is_valid_bash() -> None:
 
 @pytest.mark.parametrize("name", ["key_proxy.py", "finetune_lora.py"])
 def test_scripts_carried_in_job_scripts_cannot_end_the_heredoc_early(name: str) -> None:
-    text = (Path(__file__).parents[1] / "src/gagnvist/lumi/job_templates" / name).read_text()
+    text = (Path(__file__).parents[1] / "src/gagnvist/lumi/job_templates" / name).read_text(
+        encoding="utf-8"
+    )
     assert "GAGNVIST_END_OF_SCRIPT" not in text
     assert "{{" not in text
 

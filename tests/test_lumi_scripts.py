@@ -52,7 +52,8 @@ def serve_script(tmp_path: Path, name: str) -> Path:
             request_name=name,
             extra_arguments="--max-model-len 8192 --gpu-memory-utilization 0.9",
             key_proxy=_template_text("key_proxy.py"),
-        )
+        ),
+        encoding="utf-8",
     )
     return script
 
@@ -71,7 +72,9 @@ def stop_leftovers(root: Path) -> None:
     for record in ("vllm-call.json", "gatekeeper-call.json"):
         if (root / record).exists():
             with contextlib.suppress(ProcessLookupError):
-                os.kill(json.loads((root / record).read_text())["pid"], signal.SIGTERM)
+                os.kill(
+                    json.loads((root / record).read_text(encoding="utf-8"))["pid"], signal.SIGTERM
+                )
 
 
 @pytest.fixture
@@ -87,7 +90,7 @@ def running_server(
     address_file = tmp_path / "home" / ".gagnvist" / "jobs" / f"{JOB_ID}.json"
     try:
         wait_for(address_file, process)
-        yield process, json.loads(address_file.read_text()), address_file
+        yield process, json.loads(address_file.read_text(encoding="utf-8")), address_file
     finally:
         if process.poll() is None:
             process.kill()
@@ -99,17 +102,19 @@ def test_the_server_publishes_its_address_privately(
 ) -> None:
     _, address, address_file = running_server
     assert address["job"] == JOB_ID and address["kind"] == "chat" and address["model"] == "qwen7"
-    assert address["node"] == subprocess.check_output(["hostname"], text=True).strip()
+    assert address["node"] == subprocess.check_output(["hostname"], encoding="utf-8").strip()
     assert 20000 <= int(str(address["port"])) < 40000
     key = str(address["key"])
     assert len(key) == 60 and int(key, 16) >= 0
     assert address_file.stat().st_mode & 0o777 == 0o600
     assert address_file.parent.stat().st_mode & 0o777 == 0o700
 
-    vllm = json.loads((tmp_path / "lumi" / "vllm-call.json").read_text())
+    vllm = json.loads((tmp_path / "lumi" / "vllm-call.json").read_text(encoding="utf-8"))
     assert "--uds" in vllm["argv"] and "--port" not in vllm["argv"]  # vLLM: a socket file only
     assert key not in " ".join(vllm["argv"]) and "--api-key" not in vllm["argv"]
-    gatekeeper = json.loads((tmp_path / "lumi" / "gatekeeper-call.json").read_text())
+    gatekeeper = json.loads(
+        (tmp_path / "lumi" / "gatekeeper-call.json").read_text(encoding="utf-8")
+    )
     assert key not in " ".join(gatekeeper["argv"])  # the key is in its environment only
 
 
@@ -149,7 +154,7 @@ def test_stopping_the_job_removes_its_address_and_working_files(
     running_server: tuple[subprocess.Popen[bytes], dict[str, object], Path], tmp_path: Path
 ) -> None:
     process, _, address_file = running_server
-    vllm = json.loads((tmp_path / "lumi" / "vllm-call.json").read_text())
+    vllm = json.loads((tmp_path / "lumi" / "vllm-call.json").read_text(encoding="utf-8"))
     socket_folder = Path(vllm["argv"][vllm["argv"].index("--uds") + 1]).parent
     assert socket_folder.stat().st_mode & 0o777 == 0o700
     process.send_signal(signal.SIGTERM)  # what `scancel` does
@@ -181,7 +186,7 @@ def test_the_finetune_script_runs_its_own_copy_of_the_training_script(
 ) -> None:
     run = tmp_path / "run"
     run.mkdir()
-    (run / "train.jsonl").write_text("{}\n")
+    (run / "train.jsonl").write_text("{}\n", encoding="utf-8")
     script = tmp_path / "finetune.sbatch"
     script.write_text(
         render_template(
@@ -198,12 +203,13 @@ def test_the_finetune_script_runs_its_own_copy_of_the_training_script(
             rank="16",
             learning_rate="0.0002",
             finetune_script=_template_text("finetune_lora.py"),
-        )
+        ),
+        encoding="utf-8",
     )
     env = environment(tmp_path, fake_programs)
     completed = subprocess.run(["bash", str(script)], env=env, capture_output=True, timeout=60)
     assert completed.returncode == 0, completed.stderr.decode()
-    call = json.loads((tmp_path / "lumi" / "finetune-call.json").read_text())
+    call = json.loads((tmp_path / "lumi" / "finetune-call.json").read_text(encoding="utf-8"))
     shipped = _template_text("finetune_lora.py")
     assert call["script"].rstrip("\n") == shipped.rstrip("\n")  # exactly the shipped script
     script_path = Path(call["argv"][1])

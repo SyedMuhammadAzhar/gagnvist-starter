@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 import pytest
-from fake_lumi import PROJECT, FakeLumi, needs_posix
+from fake_lumi import PROJECT, TEAM_KEY, FakeLumi, needs_posix
 
 from gagnvist.cli import main
 from gagnvist.lumi.cli import _explain_own_server, check_training_data
@@ -78,6 +78,17 @@ def test_check_reports_a_ready_account(
     assert f"You are a member of the project {PROJECT}." in printed
     assert "The shared models are not running right now." in printed
     assert "All set." in printed
+
+
+def test_check_reports_a_key_that_is_not_a_team_key(
+    fake_lumi: FakeLumi, capsys: pytest.CaptureFixture[str]
+) -> None:
+    env = fake_lumi.config.parent / ".env"
+    env.write_text(env.read_text(encoding="utf-8").replace(TEAM_KEY, "team-01"), encoding="utf-8")
+    assert main(["--config", str(fake_lumi.config), "lumi", "check"]) == 1
+    printed = capsys.readouterr().out
+    assert "PROBLEM: GAGNVIST_TEAM_KEY in .env: it has 7 characters" in printed
+    assert "All set." not in printed
 
 
 @needs_posix

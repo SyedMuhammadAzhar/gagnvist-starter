@@ -10,6 +10,7 @@ your SSH agent once a day (see docs/lumi.md) and it stops asking.
 
 from __future__ import annotations
 
+import os
 import shlex
 import shutil
 import subprocess
@@ -87,18 +88,28 @@ class Lumi:
         ]
 
     def _explain_ssh_failure(self, errors: str) -> str:
+        # ssh prints the reason a key could not be used before its final "Permission
+        # denied", so the reasons are looked for first.
+        if "UNPROTECTED PRIVATE KEY FILE" in errors or "bad permissions" in errors:
+            return (
+                f"ssh refuses to use {self.ssh_key} because others may read it. On macOS or "
+                f"Linux: chmod 600 {self.ssh_key}. On Windows, in PowerShell: "
+                f'icacls "{self.ssh_key}" /inheritance:r /grant:r "$($env:USERNAME):R"'
+            )
+        if "invalid format" in errors or "error in libcrypto" in errors:
+            return (
+                f"ssh cannot read the key {self.ssh_key}: GAGNVIST_SSH_KEY must point to the "
+                "private key in OpenSSH format (not the .pub file; a PuTTY .ppk key must first "
+                "be exported from PuTTYgen with Conversions, Export OpenSSH key)"
+            )
+        if "incorrect passphrase" in errors:
+            return f"the passphrase for {self.ssh_key} was not right; try again"
         if "Permission denied" in errors:
             return (
                 f"LUMI did not accept the SSH key {self.ssh_key} for the user "
                 f"{self.username!r}: check GAGNVIST_LUMI_USERNAME and GAGNVIST_SSH_KEY in "
                 ".env. A key you have just added in MyAccessID can take a few hours to "
                 "reach LUMI."
-            )
-        if "UNPROTECTED PRIVATE KEY FILE" in errors:
-            return (
-                f"ssh refuses to use {self.ssh_key} because others may read it. On macOS or "
-                f"Linux: chmod 600 {self.ssh_key}. On Windows: in the file's Properties, "
-                "Security, leave only your own account."
             )
         if "Host key verification failed" in errors:
             return (
@@ -113,6 +124,11 @@ class Lumi:
 
 def _ssh_program() -> str:
     program = shutil.which("ssh")
+    if program is None and os.name == "nt":
+        # 32-bit Python on 64-bit Windows sees System32 redirected and misses ssh there
+        windows = os.environ.get("SYSTEMROOT", r"C:\Windows")
+        candidate = Path(windows, "Sysnative", "OpenSSH", "ssh.exe")
+        program = str(candidate) if candidate.is_file() else None
     if program is None:
         raise LumiError(
             "the ssh program was not found. On Windows, add it under Settings > Apps > "
