@@ -1,6 +1,7 @@
 """The table cards as a dataset of their own (cards/)."""
 
 import csv
+import json
 import shutil
 from collections import Counter
 from contextlib import closing
@@ -97,3 +98,37 @@ def test_the_build_cards_command_keeps_existing_cards(
 
 def _key(card: Card) -> tuple[str, str]:
     return (card.folder, card.language)
+
+
+REPOSITORY = Path(__file__).parents[1]
+
+
+def test_the_shipped_index_holds_exactly_the_shipped_cards() -> None:
+    """The vector index that comes with the repository was made from cards/ as it is:
+    the same texts in the same order (a changed card needs `gagnvist build-vectors`)."""
+    shipped = search_cards(REPOSITORY / "cards")
+    with (REPOSITORY / "index" / "cards.jsonl").open(encoding="utf-8") as f:
+        indexed = [Card(**json.loads(line)) for line in f if line.strip()]
+    assert indexed == shipped
+    assert len(shipped) == 2 * len(read_cards(REPOSITORY / "cards", "is"))
+
+
+def test_the_language_differences_name_real_pairs() -> None:
+    with (REPOSITORY / "cards" / "pairs.csv").open(encoding="utf-8-sig", newline="") as f:
+        pairs = {row["pair"]: row for row in csv.DictReader(f)}
+    path = REPOSITORY / "cards" / "language-differences.csv"
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert rows
+    for row in rows:
+        pair = pairs[row["pair"]]
+        assert (row["table_code_is"], row["table_code_en"]) == (
+            pair["table_code_is"],
+            pair["table_code_en"],
+        )
+        assert row["difference"] in {
+            "numbers differ",
+            "different categories",
+            "same numbers, other order",
+            "rounding",
+        }

@@ -1,0 +1,130 @@
+﻿pair,table_code_is,table_code_en,title_en,difference,cells_compared,cells_different,example_is,example_en,note
+P0025,SAM02000,SAM02000,Passengers and tourists through Keflavik Airport 2015-,numbers differ,224,4,109085,106244,Statistics Iceland's two editions publish different numbers in these cells
+P0137,SJA01102,SJA01102,"Catch by species, category of vessel and fishing gear, January 2010 - September 2026",numbers differ,636480,118765,1068255842,1068260987,Statistics Iceland's two editions publish different numbers in these cells
+P0175,SJA04903,SJA04903,Exported marine products by categories and countries 1999-2025,numbers differ,2590812,179805,48258,..,Statistics Iceland's two editions publish different numbers in these cells
+P0177,SJA04905,SJA04905,Export of aquaculture products 2010-2025,numbers differ,16800,4952,18,..,Statistics Iceland's two editions publish different numbers in these cells
+P0197,SAM07501,SAM07501,"Computer related activities carried out by individuals 2004-2009, 2011",numbers differ,1242,15,76.3,76.25,Statistics Iceland's two editions publish different numbers in these cells
+P0198,SAM07502,SAM07502,"Internet related activities carried out by individuals 2010-2011, 2013",numbers differ,552,23,65.3,65.25,Statistics Iceland's two editions publish different numbers in these cells
+P0199,SAM07503,SAM07503,"Individuals' computer and Internet skills self-assessed 2011, 2013",numbers differ,552,12,58.8,58.85,Statistics Iceland's two editions publish different numbers in these cells
+P0200,SAM07101,SAM07101,Access to computers and the internet in households 2002-2014,numbers differ,286,2,94.9,94.85,Statistics Iceland's two editions publish different numbers in these cells
+P0204,SAM07202,SAM07202,Internet connections and access devices in households 2003-2013,numbers differ,1188,18,2.4,2.45,Statistics Iceland's two editions publish different numbers in these cells
+P0205,SAM07203,SAM07203,Individuals' use of Internet enabled mobile devices 2006-2014,numbers differ,2277,37,3.4,3.45,Statistics Iceland's two editions publish different numbers in these cells
+P0206,SAM07601,SAM07601,Individuals' worries about security threats on Internet 2010,numbers differ,414,13,38.1,38.05,Statistics Iceland's two editions publish different numbers in these cells
+P0207,SAM07603,SAM07603,Security measures on home computers 2010,numbers differ,184,9,14.9,14.85,Statistics Iceland's two editions publish different numbers in these cells
+P0208,SAM07602,SAM07602,Individuals' experiences with security threats on Internet 2010,numbers differ,138,6,0.6,0.65,Statistics Iceland's two editions publish different numbers in these cells
+P0211,SAM07303,SAM07303,"Products delivered or up-graded online 2005-2011, 2013",numbers differ,736,12,44.9,44.95,Statistics Iceland's two editions publish different numbers in these cells
+P0214,SAM07306,SAM07306,Means of payment when doing Internet commerce 2009,numbers differ,92,1,7,7.50,Statistics Iceland's two editions publish different numbers in these cells
+P0216,SAM07401,SAM07401,Online communication among individuals 2003-2014,numbers differ,2392,17,91.9,91.95,Statistics Iceland's two editions publish different numbers in these cells
+P0217,SAM07402,SAM07402,Individuals' use of internet 2003-2014,numbers differ,5681,19,90.6,90.65,Statistics Iceland's two editions publish different numbers in these cells
+P0218,SAM07403,SAM07403,Individuals' communication with public authorities via the Internet 2008-2014,numbers differ,4784,5,92.6,92.55,Statistics Iceland's two editions publish different numbers in these cells
+P0269,THJ05712,THJ05712,Public expenditure on social protection 1980-1998,numbers differ,608,157,27.50,27.00,Statistics Iceland's two editions publish different numbers in these cells
+P0327,THJ95200,THJ95200,Monthly central government accounts - cash basis 2004-2014,numbers differ,5148,4,52956.5,52957,Statistics Iceland's two editions publish different numbers in these cells
+P0345,THJ00111,THJ00111,Production and turnover,numbers differ,3600,12,77703.954000000000,73680.236000000000,Statistics Iceland's two editions publish different numbers in these cells
+P0415,THJ06023,THJ06023,Generation of Income Account 2000-2019,numbers differ,2520,120,33258.8062292591,15503.7720205576,Statistics Iceland's two editions publish different numbers in these cells
+P0475,UTA04004,UTA04004,External trade in services by EBOPS aggregates and partner country 2009 -2012,numbers differ,2112,1053,9401.1,8.2,Statistics Iceland's two editions publish different numbers in these cells
+P0497,VIS01303,VIS01303,"Consumer price index, subindices from 2002-2019",numbers differ,56376,2,..,.,Statistics Iceland's two editions publish different numbers in these cells
+P0510,VIS03010,VIS03010,Sub indices for building cost index from 1987,numbers differ,20736,1,0.0,.,Statistics Iceland's two editions publish different numbers in these cells
+P0523,VIS02001,VIS02001,Harmonised indices of consumer prices by countries and months from 2006 - 2015,numbers differ,9620,110,..,.,Statistics Iceland's two editions publish different numbers in these cells
+P0541,VIS05303,VIS05303,Average household expenditure and size by type of household from 2002-2016,numbers differ,11424,1,-911.000000000000000,0.000000000000000,Statistics Iceland's two editions publish different numbers in these cells
+P0548,SJA06101,SJA06101,"Price indices of groundfish, shellfish, fishmeal, fish oil and herring by months 1986-2006",numbers differ,8736,82,349.6,350.5,Statistics Iceland's two editions publish different numbers in these cells
+P0548,SJA06101,SJA06101,"Price indices of groundfish, shellfish, fishmeal, fish oil and herring by months 1986-2006",numbers differ,8736,82,349.6,350.5,Statistics Iceland's two editions publish different numbers in these cells
+P0550,VIS08000B,VIS08000B,Changes in the producer price index 2006-2021,numbers differ,5616,1,194.665121210150000,..,Statistics Iceland's two editions publish different numbers in these cells
+P0575,UMH04102,UMH04102,Total waste managed 1995-2013,numbers differ,320,1,..,26,Statistics Iceland's two editions publish different numbers in these cells
+P0721,KOS02108,KOS02108,"Candidates by sex, age and political organisation in general elections 2016-2024",numbers differ,2592,162,..,0.0000000000000,Statistics Iceland's two editions publish different numbers in these cells
+P0726,KOS02114,KOS02114,Candidates in 1st-3rd place on lists by sex and political organization in general elections 2016-2024,numbers differ,432,36,..,3.000000000000,Statistics Iceland's two editions publish different numbers in these cells
+P0735,KOS02056,KOS02056,Elected members to the Althingi by sex and political organisation 2003-2024,numbers differ,576,1,63.0000000000000,62.5000000000000,Statistics Iceland's two editions publish different numbers in these cells
+P0739,KOS02120A,KOS02120A,Members of the Althingi elected in general elections 28 October 2017,numbers differ,504,14,4200.30,4200.25,Statistics Iceland's two editions publish different numbers in these cells
+P0746,KOS02136,KOS02136,Members of the Althingi elected in general elections 27 April 2013 - Reykjavík North constituency,numbers differ,88,7,4166.0,4169.5,Statistics Iceland's two editions publish different numbers in these cells
+P0776,KOS02019,KOS02019,Results of general elections to the Althingi by constituency 2021,numbers differ,231,1,30.30000000000000,30.25000000000000,Statistics Iceland's two editions publish different numbers in these cells
+P0779,KOS02118C,KOS02118C,Results of general elections to the Althingi by constituency 2013,numbers differ,336,1,..,.,Statistics Iceland's two editions publish different numbers in these cells
+P0781,KOS02122,KOS02122,Results of general elections to the Althingi by constituency 2003-2009,numbers differ,693,12,100.0,98.8,Statistics Iceland's two editions publish different numbers in these cells
+P0820,KOS03205,KOS03205,Votes cast by municipality 2006,numbers differ,616,7,1,.,Statistics Iceland's two editions publish different numbers in these cells
+P0835,KOS03101,KOS03101,Local government elections 1962-2022,numbers differ,224,3,3313.0,3323.0,Statistics Iceland's two editions publish different numbers in these cells
+P0839,KOS03107,KOS03107,Results in municipal elections in Reykjavík 1930-2022,numbers differ,3312,1,2701.0,..,Statistics Iceland's two editions publish different numbers in these cells
+P0840,KOS03109,KOS03109,Number of municipalities by participation in local elections 2002-2022,numbers differ,840,21,51,56,Statistics Iceland's two editions publish different numbers in these cells
+P0843,KOS04101,KOS04101,Results for referenda 1908-2011,numbers differ,64,1,...,..,Statistics Iceland's two editions publish different numbers in these cells
+P0845,KOS04103,KOS04103,Voters and votes cast by constituency 2010-2012,numbers differ,756,1,0.1,0.2,Statistics Iceland's two editions publish different numbers in these cells
+P1211,HEI02502,HEI02502,Active members and boards of labour federations 2003-2008,numbers differ,180,5,...,..,Statistics Iceland's two editions publish different numbers in these cells
+P1218,HEI11503,HEI11503,Education,numbers differ,152,8,.,..,Statistics Iceland's two editions publish different numbers in these cells
+P1229,HEI03101,HEI03101,Benefits and recipients of social security benefits 1994-2016,numbers differ,828,16,1201,1196,Statistics Iceland's two editions publish different numbers in these cells
+P1230,HEI03102,HEI03102,Benefits and recipients of social assistance benefits 1994-2016,numbers differ,736,6,...,..,Statistics Iceland's two editions publish different numbers in these cells
+P1231,HEI03103,HEI03103,"Social security health insurance, receipts and expenditure 1981-2016",numbers differ,648,2,.,-,Statistics Iceland's two editions publish different numbers in these cells
+P1232,HEI03104,HEI03104,Health insurance by type of expenditure 1995-2016,numbers differ,1012,1,29985.0,29984.0,Statistics Iceland's two editions publish different numbers in these cells
+P1257,HEI04312,HEI04312,Contacts with specialists 1991-2017,numbers differ,837,1,55222,.,Statistics Iceland's two editions publish different numbers in these cells
+P1258,HEI04314,HEI04314,Medical technological equipment 1980-2018,numbers differ,624,1,0.0,1.0,Statistics Iceland's two editions publish different numbers in these cells
+P1282,HEI05111,HEI05111,Sterilizations 1981-2018,numbers differ,114,3,605,603,Statistics Iceland's two editions publish different numbers in these cells
+P1423,VIN07211,VIN07211,"Households in financial difficulties by household type, 2004-2012",numbers differ,2268,12,0.0,.,Statistics Iceland's two editions publish different numbers in these cells
+P1424,VIN07212,VIN07212,"Households in financial difficulties by income, 2004-2012",numbers differ,1134,6,0.0,.,Statistics Iceland's two editions publish different numbers in these cells
+P1533,MEN02114,MEN20114,Places of publication of non-dailies 1900-2010,numbers differ,420,1,15,14,Statistics Iceland's two editions publish different numbers in these cells
+P1568,MEN02101,MEN02101,Book publishing 1999-2019,numbers differ,200,24,51,16,Statistics Iceland's two editions publish different numbers in these cells
+P1574,MEN01101,MEN01101,"Book publishing, number of volumes 1965-2000",numbers differ,280,6,8.5,9,Statistics Iceland's two editions publish different numbers in these cells
+P1584,MEN02109,MEN02109,Book publishers by kind 1999-2009,numbers differ,336,1,25,26,Statistics Iceland's two editions publish different numbers in these cells
+P1586,MEN06103,MEN06103,"Cinemas, cinema showings and admissions by regions 1995-2019",numbers differ,1350,18,..,.,Statistics Iceland's two editions publish different numbers in these cells
+P1587,MEN06104,MEN06104,Cinemas by number of screens 1975-2019,numbers differ,615,15,7,..,Statistics Iceland's two editions publish different numbers in these cells
+P1588,MEN06105,MEN06105,Releases of full-length feature films by country/region of origin 1965-2019,numbers differ,1196,1,1.250000000000000,1.3,Statistics Iceland's two editions publish different numbers in these cells
+P1591,MEN06109,MEN06109,Gross box-office revenue of full-length feature films 1985-2019,numbers differ,2940,4,96.500000000000000,97.0,Statistics Iceland's two editions publish different numbers in these cells
+P1611,MEN09109,MEN09109,Share of top 10 and top 20 videos 1996-2014,numbers differ,304,1,126.5,127,Statistics Iceland's two editions publish different numbers in these cells
+P1614,MEN09112,MEN09112,Units sold of rental and retail videos at distributor level released by country/region of origin 1996-2014,numbers differ,1596,1,0,..,Statistics Iceland's two editions publish different numbers in these cells
+P1644,SKO01103,SKO01103,Children in pre-primary institutions having another mother tongue than Icelandic 1998-2024,numbers differ,4941,3890,1150,..,Statistics Iceland's two editions publish different numbers in these cells
+P1744,SKO03122,SKO03122,"Dropout from upper secondary education by sex, year of study, mode of teaching and amount of study 2002-2003",numbers differ,432,10,17.0,17.5,Statistics Iceland's two editions publish different numbers in these cells
+P1751,SKO03301,SKO03301,"Educational personnel in schools at upper secondary level by sex, occupation, type and location of school 1999-2012",numbers differ,1755,25,1647,1666,Statistics Iceland's two editions publish different numbers in these cells
+P1752,SKO03302,SKO03302,"Educational personnel by sex, licence, age, full-time/part-time status and education 1999-2012",numbers differ,2106,35,1604,1623,Statistics Iceland's two editions publish different numbers in these cells
+P1790,SKO04100,SKO04100,"Registered students at university and doctoral level by schools, type of study 2007-2014",numbers differ,1115520,48667,118,45,Statistics Iceland's two editions publish different numbers in these cells
+P1795,SKO04105,SKO04105,"Number of students by university, sex and domicile 1997-2006",numbers differ,33000,2927,41,0,Statistics Iceland's two editions publish different numbers in these cells
+P1803,SKO00001,SKO00001,Educational attainment of the population according to ISCED 2011 2003-2024,numbers differ,4689360,82285,144,209,Statistics Iceland's two editions publish different numbers in these cells
+P0024,FER90001,FER90001,Passengers through Keflavik airport by month 1995-2023,different categories,,,,,"1 dimensions in Icelandic, 2 in English"
+P0075,FYR01004,FYR01004,Registered enterprises and organisations by legal form 1989-2004,different categories,,,,,categories: Rekstrarform 23 / Legal form 20
+P0113,LAN1001,LAN1001,Number of farms and utilised agricultural land 2010,different categories,,,,,categories: Tegund 17 / Unit 15
+P0114,LAN1002,LAN1002,Livestock by regions 2010,different categories,,,,,categories: Fjöldi 21 / Region 8; Landsvæði 8 / Livestock 10
+P0136,SJA01101,SJA01101,"Catch by species and place of landing, January 2010 - September 2026",different categories,,,,,categories: Löndunarhöfn 74 / Place of landing 75
+P0160,SJA02203,SJA02203,"Catch by species, type of processing and fishing area January 2010 - May 2025",different categories,,,,,categories: Vinnslutegund 25 / Type of processing 24
+P1539,MEN03103,MEN03103,Private radio channels by programme profile 1996-2011,different categories,,,,,categories: Dagskrársnið 8 / Programme 7
+P1737,SKO03101,SKO03101,Registered students at upper secondary and post-secondary non-tertiary level by type of study 2007-2014,different categories,,,,,categories: Námsbrautir 148 / Line of study 146
+P0176,SJA04904,SJA04904,Export of canned and preserved fish products by countries 2010-2025,"same numbers, other order",2048,1396,..,2,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P0474,UTA04003,UTA04003,External trade in services by partner country 2009-2012,"same numbers, other order",2880,2248,34793.9,197.7,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P0582,UMH26200,UMH26200,Water use in Iceland 2010-2015,"same numbers, other order",2736,1408,96.73344000000000,292.64716800000000,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1202,HEI02203,HEI02203,Managers of state institutions by ministry 2008,"same numbers, other order",56,47,7,0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1206,HEI02301,HEI02301,Municipal managers 2004-2008,"same numbers, other order",80,71,20.0,22.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1253,HEI04101,HEI04101,Health personnel 1981-2018,"same numbers, other order",1292,1193,57,200,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1306,VIN02200,VIN02200,Structure of Earnings Survey by occupational group (ISCO08) and sex 2010,"same numbers, other order",13230,11289,34817.0,4618.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1307,VIN02201,VIN02201,Structure of Earnings Survey by occupational group (ISCO88) and sex 2002 and 2006,"same numbers, other order",24192,20867,37067.8,1879.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1308,VIN02202,VIN02202,Structure of Earnings Survey by economic activity (NACE rev. 2) and sex 2010,"same numbers, other order",19110,16223,34817.0,4618.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1309,VIN02203,VIN02203,Structure of Earnings Survey by economic activity (NACE rev. 1.1) and sex 2002 and 2006,"same numbers, other order",24192,19639,37067.8,1879.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1310,VIN02204,VIN02204,"Structure of Earnings Survey by age and sex 2002, 2006, and 2010","same numbers, other order",26460,22763,37068.0,1879.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1311,VIN02205,VIN02205,Structure of Earnings Survey by edcuation and sex 2010,"same numbers, other order",10290,8520,34817.0,4618.0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P1796,SKO04107,SKO04106,Number of students abroad by country and sex 1997-2006,"same numbers, other order",750,498,546,0,"both languages hold the same numbers, but under categories in a different order: match categories by their meaning, not their position"
+P0147,SJA09040,SJA09040,"Catch and value by species, region of landing and buyers 1982-2024",rounding,4695600,174,,,the same numbers; one language shows fewer decimals
+P0149,SJA09042,SJA09042,"Catch and value by species, place of landing and months 1982-2024",rounding,4977336,174,,,the same numbers; one language shows fewer decimals
+P0189,SAM06104,SAM06104,Internet subscriptions by technology 2003-2011,rounding,108,2,,,the same numbers; one language shows fewer decimals
+P0424,UTA06002,UTA06002,"Exports, imports and balance of trade 2015-2026",rounding,700,699,,,the same numbers; one language shows fewer decimals
+P0431,UTA06103,UTA06103,Exports by commodities (SI classification) and branches of processing 2002-2025,rounding,39384,53,,,the same numbers; one language shows fewer decimals
+P0433,UTA06106,UTA06106,Export of fresh fish by mode of transport 1988-2025,rounding,608,6,,,the same numbers; one language shows fewer decimals
+P0446,UTA06004,UTA06004,The value of exports and imports by month (FOB/FOB) 2010-2020,rounding,6336,96,,,the same numbers; one language shows fewer decimals
+P0455,UTA16203,UTA16203,Imports of some major items by countries 2002-2014,rounding,3000,29,,,the same numbers; one language shows fewer decimals
+P0507,VIS13401,VIS13401,"Building cost index, annual average",rounding,8,2,,,the same numbers; one language shows fewer decimals
+P0525,VIS02200,VIS02200,"Harmonised index for consumer prices for Iceland, subindices from 2006 - 2015",rounding,14520,128,,,the same numbers; one language shows fewer decimals
+P0530,VIS02400,VIS02400,"Harmonised index for consumer prices for Iceland, subindices from 1995 to January 2006",rounding,17424,1,,,the same numbers; one language shows fewer decimals
+P0537,VIS06126,VIS06126,Relative price level indices of GDP 2004-2008,rounding,8510,7626,,,the same numbers; one language shows fewer decimals
+P0538,VIS06127,VIS06127,Volume indices per capita for GDP 2004-2008,rounding,8510,1485,,,the same numbers; one language shows fewer decimals
+P0539,VIS06128,VIS06128,Value indices per capita based on average exchange rates 2004-2008,rounding,8510,8324,,,the same numbers; one language shows fewer decimals
+P0540,VIS05302,VIS05302,Average household expenditure and size by residence from 2002-2016,rounding,7616,3,,,the same numbers; one language shows fewer decimals
+P0543,VIS05305,VIS05305,"Average household expenditure and size by quarters of expenditure, excluding cars, from 2003-2016",rounding,8710,5,,,the same numbers; one language shows fewer decimals
+P0552,VIS08010B,VIS08010B,"Producer price index, subindex weights 2007-2021",rounding,1620,13,,,the same numbers; one language shows fewer decimals
+P0724,KOS02112,KOS02112,"Candidates by sex, age and constituency in general elections 2003-2024",rounding,2016,42,,,the same numbers; one language shows fewer decimals
+P0766,KOS02101,KOS02101,"Votes cast, voters on the electoral roll and participation by municipality and sex 2003-2024",rounding,11808,223,,,the same numbers; one language shows fewer decimals
+P0771,KOS02102,KOS02102,Voters on the electoral roll in general elections per member of the Althingi 2003-2024,rounding,224,5,,,the same numbers; one language shows fewer decimals
+P0785,KOS07000,KOS07000,Voters on the electoral roll and participation by constituency 2004-2024,rounding,840,1,,,the same numbers; one language shows fewer decimals
+P0786,KOS07002,KOS07002,"Votes cast, voters and participation by municipality in the presidential elections 2012-2024",rounding,3936,15,,,the same numbers; one language shows fewer decimals
+P0805,KOS03315,KOS03315,Candidates for proportional voting by sex and candidate lists 2006-2022,rounding,630,18,,,the same numbers; one language shows fewer decimals
+P0851,KOS01890,KOS01890,Participation by sex and age in elections 2014-2024,rounding,486,54,,,the same numbers; one language shows fewer decimals
+P0852,KOS01892,KOS01892,"Participation by sex, age and population in municipalities 2014-2024",rounding,756,84,,,the same numbers; one language shows fewer decimals
+P0854,KOS02000,KOS02000,Blank and void ballots in elections 1908-2024,rounding,324,2,,,the same numbers; one language shows fewer decimals
+P0859,KOS02005,KOS02005,Participation in local government elections 1938-2022,rounding,352,2,,,the same numbers; one language shows fewer decimals
+P0861,KOS02007,KOS02007,Candidates and elected members in general elections to Althingi 1916-2024,rounding,420,8,,,the same numbers; one language shows fewer decimals
+P1480,MEN01201,MEN01201,Public libraries 1987-2001,rounding,75,1,,,the same numbers; one language shows fewer decimals
+P1582,MEN02107,MEN02107,Book publishers by number of published titles 1999-2009,rounding,330,9,,,the same numbers; one language shows fewer decimals
+P1592,MEN06110,MEN06110,Full-length feature films exhibited by country/region of origin 1996-2019,rounding,624,124,,,the same numbers; one language shows fewer decimals
+P1593,MEN06111,MEN06111,Admissions to full-length feature films by country/region of origin 1985-2019,rounding,2940,195,,,the same numbers; one language shows fewer decimals
+P1595,MEN06113,MEN06113,Cinemas by number of showings per year 1996-2019,rounding,432,31,,,the same numbers; one language shows fewer decimals
+P1605,MEN09103,MEN09103,Rental video market 1981-2014,rounding,544,15,,,the same numbers; one language shows fewer decimals
+P1743,SKO03121,SKO03121,"Dropout from upper secondary education by sex, age, mode of teaching and type of programme 2002-2003",rounding,864,318,,,the same numbers; one language shows fewer decimals

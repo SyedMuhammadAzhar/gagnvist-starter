@@ -77,11 +77,27 @@ class TableMetadata:
         raise KeyError(f"the table has no dimension with code {code!r}")
 
 
-def clean_title(text: str) -> str:
-    """A title as a person should read it: runs of spaces made one, and characters
-    that reached the text as control characters repaired. (Statistics Iceland's API
-    lists six census titles with U+0096, a Windows-1252 en dash, where U+2013 belongs;
-    190 titles have extra spaces.)"""
+# Two tables whose Icelandic and English editions sit at each other's addresses:
+# VIS06123 in Icelandic is the same table as VIS06125 in English, and the other way
+# round (their titles say so, and their numbers are identical). catalogue.csv pairs
+# them by address; this corrects it, without changing the data release.
+_PARTNER_CORRECTIONS = {
+    "Economy/is/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06123":
+        "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06125",
+    "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06125":
+        "Economy/is/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06123",
+    "Economy/is/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06125":
+        "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06123",
+    "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06123":
+        "Economy/is/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06125",
+}  # fmt: skip
+
+
+def clean_text(text: str) -> str:
+    """A title or label as a person should read it: runs of spaces made one, and
+    characters that reached the text as control characters repaired. (Statistics
+    Iceland's API sends some titles and category labels with U+0096, a Windows-1252 en
+    dash, where U+2013 belongs, or with Windows-1252 quote marks; many have extra spaces.)"""
     repaired = "".join(_from_windows_1252(c) if "\x80" <= c <= "\x9f" else c for c in text)
     return " ".join(repaired.split())
 
@@ -104,12 +120,14 @@ def read_catalogue(data_folder: Path) -> list[CatalogueEntry]:
                 folder=row["folder"],
                 language=row["language"],
                 table_code=row["table_code"],
-                title=clean_title(row["title"]),
+                title=clean_text(row["title"]),
                 dataset=row["dataset"],
                 api_url=row["api_url"],
                 last_updated=row["last_updated"],
                 cells=int(row["cells"]),
-                partner_folder=row["other_language_folder"],
+                partner_folder=_PARTNER_CORRECTIONS.get(
+                    row["folder"], row["other_language_folder"]
+                ),
             )
             for row in csv.DictReader(f)
         ]
@@ -120,13 +138,13 @@ def read_metadata(data_folder: Path, folder: str) -> TableMetadata:
     with (data_folder / folder / "metadata.json").open(encoding="utf-8") as f:
         raw = json.load(f)
     return TableMetadata(
-        title=clean_title(raw["title"]) if raw.get("title") else None,
+        title=clean_text(raw["title"]) if raw.get("title") else None,
         dimensions=tuple(
             Dimension(
                 code=variable["code"],
-                label=variable["text"],
+                label=clean_text(variable["text"]),
                 categories=tuple(
-                    Category(code=code, label=label.strip())
+                    Category(code=code, label=clean_text(label))
                     for code, label in zip(variable["values"], variable["valueTexts"], strict=True)
                 ),
                 is_time=bool(variable.get("time", False)),

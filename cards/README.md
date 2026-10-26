@@ -12,6 +12,7 @@ without unpacking the data.
 | `cards-en.jsonl` | the 1,886 English cards, in the same order: line *n* is the same table as line *n* of `cards-is.jsonl` |
 | `cards.csv` | all 3,772 cards, one row each, without the categories |
 | `pairs.csv` | the 1,886 tables, with the Icelandic and English codes, titles and folders side by side |
+| `language-differences.csv` | the tables whose numbers are not the same in both languages, and how they differ |
 
 The two CSV files open in Excel, Numbers or LibreOffice. They are saved as UTF-8 with a
 byte-order mark, so Icelandic letters show correctly.
@@ -66,7 +67,11 @@ The English card of MAN02005, with the categories cut short (the file has all of
   for all 3,772. Two things were repaired: runs of spaces are made one (190 titles),
   and six census titles (CEN0031 to CEN0033, in both languages) had a broken dash,
   which the API sends as a control character.
-- **Dimensions and categories** are copied from each table's `metadata.json`.
+- **Dimensions and categories** are copied from each table's `metadata.json`, repaired
+  in the same way: 1,171 category labels in 58 tables had Windows quote marks or dashes
+  sent as control characters (`0\x9619 ára` is `0–19 ára` here), and many had runs
+  of spaces. The data files themselves are left exactly as Statistics Iceland
+  published them.
 - **The period** comes from the time dimension. It is recognised by its name (Year, Ár,
   Month, Mánuður, Quarter, Period, ...) in either language: when only one language's
   name is clear, as with "Tímabil" and "Season", both cards use it. The earliest and
@@ -78,7 +83,29 @@ The English card of MAN02005, with the categories cut short (the file has all of
 
 Every table is here in both languages. Tables that Statistics Iceland publishes in only
 one language are not in the data at all: the data's README lists the 89 left out, and
-why. A few things are kept as Statistics Iceland publishes them:
+why.
+
+Two tables sit at each other's addresses: VIS06123 in Icelandic is the same table as
+VIS06125 in English, and the other way round (their titles say so, and their numbers
+are identical). The data's `catalogue.csv` pairs them by address; the cards pair them
+by content.
+
+The numbers of a table are the same in both languages for 1,757 of the 1,886 tables.
+For the other 129, Statistics Iceland's two editions differ, and the data keeps each as
+published (a sample was checked against the live API: the data matches it in both
+languages). [language-differences.csv](language-differences.csv) lists them:
+
+| Difference | Tables | What it means |
+|---|---:|---|
+| `rounding` | 35 | the same numbers; one language shows fewer decimals |
+| `same numbers, other order` | 13 | the same numbers under categories in another order: match categories by meaning, not position |
+| `different categories` | 8 | one language has more or fewer categories, or an extra dimension |
+| `numbers differ` | 73 | some numbers differ, often in a few cells (a revision made in one language only) |
+
+Keep this in mind when an Icelandic and an English question should give the same
+number.
+
+A few more things are kept as Statistics Iceland publishes them:
 
 - in 7 tables the code differs between the languages, e.g. VIN06101 in Icelandic is
   VIN08601 in English (`pairs.csv` shows both);
@@ -107,12 +134,12 @@ for language in ("is", "en"):
             out.write(json.dumps(card, ensure_ascii=False) + "\n")
 ```
 
-Then point `gagnvist.toml` to the new cards and to a new index folder:
+Then point the starter kit to the new cards and to a new index folder, in `.env` (not
+in `gagnvist.toml`, which `git pull` updates):
 
-```toml
-[search]
-index = "local/index-with-period"
-cards = "local/cards-with-period"
+```bash
+GAGNVIST_SEARCH_INDEX=local/index-with-period
+GAGNVIST_SEARCH_CARDS=local/cards-with-period
 ```
 
 and run `gagnvist build-vectors` (a few minutes with the shared models connected),

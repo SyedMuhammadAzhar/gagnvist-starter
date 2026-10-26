@@ -4,14 +4,18 @@ from pathlib import Path
 
 import pytest
 
-from gagnvist.data.catalogue import clean_title, read_catalogue, read_metadata
+from gagnvist.data.catalogue import clean_text, read_catalogue, read_metadata
 
 
 def test_titles_are_cleaned() -> None:
     # as the API lists census table CEN0031: a Windows-1252 en dash as a control character
-    assert clean_title("region 24.\x96 30. January 1981") == "region 24.\u2013 30. January 1981"
-    assert clean_title("  Erlendir farþegar 1971-1999  ") == "Erlendir farþegar 1971-1999"
-    assert clean_title("Keflavik Airport  2015-") == "Keflavik Airport 2015-"
+    assert clean_text("region 24.\x96 30. January 1981") == "region 24.\u2013 30. January 1981"
+    assert clean_text("  Erlendir farþegar 1971-1999  ") == "Erlendir farþegar 1971-1999"
+    assert clean_text("Keflavik Airport  2015-") == "Keflavik Airport 2015-"
+    # as the API lists a category of UTA02801: Windows-1252 quote marks
+    assert (
+        clean_text("33074100-\x84Agarbatti\x93 o.þ.h.") == "33074100-\u201eAgarbatti\u201c o.þ.h."
+    )
 
 
 def test_every_table_is_listed_in_both_languages(data_folder: Path) -> None:

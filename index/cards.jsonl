@@ -2417,9 +2417,9 @@
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdur/VIS06140", "language": "en", "text": "Prices Level Indices and consumption. EU=100. Year, Category, Country"}
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdur/VIS06141", "language": "en", "text": "Purchasing Power Parities for GDP. EU=1.0. Year, Category, Country"}
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdur/VIS06142", "language": "en", "text": "Volume indices per capita in PPS. EU=100. Year, Category, Country"}
-{"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06123", "language": "en", "text": "Prices Level Indices and consumption. EU=100 1995-2024. Year, Category, Country"}
-{"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06124", "language": "en", "text": "Purchasing Power Parities for GDP. EU=1.0 1995-2024. Year, Category, Country"}
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06125", "language": "en", "text": "Volume indices per capita in PPS. EU=100 1995-2024. Year, Category, Country"}
+{"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06124", "language": "en", "text": "Purchasing Power Parities for GDP. EU=1.0 1995-2024. Year, Category, Country"}
+{"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06123", "language": "en", "text": "Prices Level Indices and consumption. EU=100 1995-2024. Year, Category, Country"}
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06126", "language": "en", "text": "Relative price level indices of GDP 2004-2008. Year, Category, Country"}
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06127", "language": "en", "text": "Volume indices per capita for GDP 2004-2008. Year, Category, Country"}
 {"folder": "Economy/en/visitolur/3_verdsamanburdur/verdsamanburdureldra/VIS06128", "language": "en", "text": "Value indices per capita based on average exchange rates 2004-2008. Year, Category, Country"}
