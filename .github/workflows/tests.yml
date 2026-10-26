@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ github.event_name == 'workflow_dispatch' && fromJSON('["ubuntu-latest", "macos-latest", "windows-latest"]') || fromJSON('["ubuntu-latest"]') }}
-        python: ["3.11", "3.14"]
+        python: ["3.11", "3.14", "3.15"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -31,4 +31,33 @@ jobs:
       - name: Type check
         run: mypy
       - name: Tests
-        run: pytest -q
+        # every file a test opens must name its encoding (Windows' default is not UTF-8)
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: pytest -q -W error::EncodingWarning
+
+  # The participants' path on Windows and macOS, with the real data: unpack it, index
+  # it, and make the cards again, which must come out byte for byte as committed.
+  # Run by hand (Actions tab, "Run workflow"): it takes about 15 minutes.
+  data:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["windows-latest", "macos-latest"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.15"
+      - name: Install
+        run: python -m pip install -e .
+      - name: Unpack the data
+        run: gagnvist get-data
+      - name: Index it
+        run: gagnvist build-index
+      - name: Make the cards again
+        run: gagnvist build-cards --replace
+      - name: The cards are the same as committed
+        run: git diff --exit-code --stat cards/
