@@ -57,7 +57,7 @@ JURECA = Cluster(
     multiplex=True,  # JURECA may ask for a one-time code at every login
     key_hint=(
         "A key added in JuDoor takes up to 15 minutes to work, and its from= clause must "
-        "name the network you are on now (JuDoor shows your address)."
+        "name the network you are on now (ask a search engine 'what is my IP')."
     ),
     host_key_hint="JURECA's host key (its fingerprints are on JuDoor's SSH keys page)",
     modules="module purge",

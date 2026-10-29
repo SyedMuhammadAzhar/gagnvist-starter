@@ -27,9 +27,9 @@ Accounts are managed in [JuDoor](https://judoor.fz-juelich.de/), JSC's portal:
 2. **Join the hackathon's project.** The organizers tell you its name (it is
    `[jureca] project` in `gagnvist.toml`); in JuDoor, ask to join it, and the
    project's manager approves you.
-3. **Add your SSH key** for JURECA in JuDoor (the key upload form for JURECA, on the
-   project's page). JURECA only accepts a key from the networks its `from=` clause
-   names, so paste the key with that clause in front of it:
+3. **Add your SSH key** for JURECA in JuDoor (*Manage SSH-keys*, next to JURECA in
+   the project's list of systems). JURECA only accepts a key from the networks its
+   `from=` clause names, so paste the key with that clause in front of it:
 
    ```text
    from="130.208.0.0/16" ssh-ed25519 AAAAC3Nz... you@laptop
@@ -42,7 +42,7 @@ Accounts are managed in [JuDoor](https://judoor.fz-juelich.de/), JSC's portal:
    "what is my IP". **From any other network the key is simply refused** (`Permission
    denied (publickey)`), so list every network you will actually use. Make an ed25519
    key if you have none (`ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_jureca`, with a
-   passphrase). A new key works after about 15 minutes.
+   passphrase). A new key works within 15 minutes.
 4. **Only for models of your own** (section 5), two more things, which the shared
    models do not need:
    - **Container access.** In JuDoor: *Software* → *Request access to restricted
@@ -97,11 +97,16 @@ Then type `yes`, enter your key's passphrase, and once you are logged in, type `
 **A one-time code.** If your JuDoor account has multi-factor authentication enabled,
 JURECA asks for a six-digit code from your authenticator app after your key, at every
 login. The starter kit opens one connection to JURECA and sends every command and
-tunnel through it for 10 hours, so you type the code once per day (ssh's
-*ControlMaster*; it keeps a small socket file in `~/.ssh/`). Windows' OpenSSH cannot
-do this, so there every `gagnvist jureca` command asks for the code.
+tunnel through it (ssh's *ControlMaster*; it keeps a small socket file in `~/.ssh/`),
+so you type the code once; the connection closes after 10 hours without use, and the
+next command asks for a code again. Windows' OpenSSH cannot do this, so there every
+`gagnvist jureca` command asks for the code, and so does the tunnel each time it
+reconnects.
 
 ## 4. The shared models
+
+Once the organizers have announced that JURECA is ready (at the time of writing they
+had not yet tried it end to end):
 
 ```bash
 gagnvist jureca check                    # logged in? in the project? team key accepted?
@@ -114,8 +119,8 @@ and stays open until you press Ctrl+C. Then, in a second window, with `GAGNVIST_
 jureca` on each command: `gagnvist try-models`, `gagnvist ask "..."`,
 `gagnvist evaluate`. The models are the same as on LUMI, under the same names, so the
 vector index that comes with the starter kit works with both. The shared models need
-neither the `container` group nor a GPU budget of your own: being a member of the
-project, with your key, is enough.
+neither the `container` group nor a GPU budget of your own, nor the container that
+`check` may say is missing: being a member of the project, with your key, is enough.
 
 ## 5. Models of your own
 
@@ -133,7 +138,9 @@ gagnvist jureca stop 1234567
 What is different:
 
 - **A job always gets a whole node**, with four NVIDIA A100 GPUs, whether you ask for
-  `--gpus 1`, `2` or `4`. It costs the same either way: 128 core-hours per hour.
+  `--gpus 1`, `2` or `4`. It costs the same either way: 128 core-hours per hour, and
+  JSC asks that production jobs use all the GPUs of their node, so prefer `--gpus 4`
+  for anything but a short test.
 - **Two jobs at a time** for each person, as on LUMI — a chat model and an embedding
   model — but each is a whole node, so two cost 256 core-hours per hour. At most 6
   hours per job, or 2 on `dc-gpu-devel` (`--partition dc-gpu-devel`), which often
@@ -177,8 +184,9 @@ your computer, so that they can be open next to LUMI's (8801, 8802).
 | `JURECA did not accept the SSH key` / `Permission denied (publickey)` | Check `GAGNVIST_JURECA_USERNAME` and `GAGNVIST_JURECA_SSH_KEY` in `.env`. Is your current network in the key's `from=` clause ("what is my IP")? A key added in the last 15 minutes may not work yet. |
 | `JURECA accepted your key, then asked for a one-time code` / `Permission denied (keyboard-interactive)` | Your account has multi-factor authentication: log in once by hand (section 3), or run `gagnvist jureca check` in a terminal, and type the code from your authenticator app. |
 | `your account is not (yet) a member of the project` | Ask to join the project in JuDoor, and wait for the manager's approval; ask the organizers if it does not come. |
-| `NOTE: your account is not in the group 'container' yet` / `not authorized to use apptainer` | Request the *Container Runtime Engine* in JuDoor (section 1, step 4); `download` and your own jobs need it; the shared models work meanwhile. |
+| `NOTE: your account is not in the group 'container' yet` / `is not in group container` (apptainer, in a job's log) | Request the *Container Runtime Engine* in JuDoor (section 1, step 4); `download` and your own jobs need it; the shared models work meanwhile. |
 | `NOTE: your account cannot use the GPU partitions of ... yet` / `Slurm refused the job: your account cannot use that partition` | Your membership lacks the project's GPU budget (section 1, step 4): ask the organizers; the shared models work meanwhile. |
+| `NOTE: the container for jobs of your own is not there (yet)` | The organizers have not put the container on JURECA yet: `download`, `start` and `finetune` wait for it; the shared models work anyway. |
 | `could not verify the identity of jureca.fz-juelich.de` | Log in once by hand (section 3). |
 | `port 8775 on this computer is already in use` | Add `GAGNVIST_JURECA_LOCAL_PORT=8791` (or another free port) to `.env`. |
 | `the shared models are not running right now` | Tell the organizers; meanwhile use LUMI's (`gagnvist lumi connect`, and `--cluster lumi` or `GAGNVIST_CLUSTER=lumi`). |

@@ -9,9 +9,9 @@ Everything below goes through the `gagnvist lumi` commands, which only run `ssh`
 you. You never need to log in to LUMI yourself, except once at the start, and to store
 a Hugging Face token if you want a gated model (section 6).
 
-The same two models also run on JURECA, a second supercomputer, and the same commands
-exist for it (`gagnvist jureca ...`): see [jureca.md](jureca.md) for what differs
-there, and for switching between the two.
+When the organizers say so, the same two models also run on JURECA, a second
+supercomputer, and the same commands exist for it (`gagnvist jureca ...`): see
+[jureca.md](jureca.md) for what differs there, and for switching between the two.
 
 - [1. Your LUMI account](#1-your-lumi-account)
 - [2. Log in once by hand](#2-log-in-once-by-hand)

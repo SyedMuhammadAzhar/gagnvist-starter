@@ -2,9 +2,10 @@
 # organizers. Your personal settings (LUMI username, SSH key, team key) do not belong
 # here: copy example.env to .env and fill it in. .env is never committed.
 #
-# The shared models run on LUMI, and on JURECA as well, so that one supercomputer can
-# stand in for the other: GAGNVIST_CLUSTER in .env (or --cluster on a command) says
-# which one the commands use. See docs/lumi.md and docs/jureca.md.
+# The shared models run on LUMI. When the organizers say so, they also run on JURECA,
+# so that one supercomputer can stand in for the other: GAGNVIST_CLUSTER in .env (or
+# --cluster on a command) says which one the commands use. See docs/lumi.md and
+# docs/jureca.md.
 
 [lumi]
 host = "lumi.csc.fi"
@@ -29,8 +30,8 @@ gateway_job = "gagnvist-gateway"         # the name of that job
 gateway_port = 4000                      # the port it listens on inside JURECA
 
 [models]
-chat = "qwen2.5-7b"                      # the shared language model (the same on both)
-embeddings = "bge-m3"                    # the shared embedding model (the same on both)
+chat = "qwen2.5-7b"                      # the shared language model (the same on both supercomputers)
+embeddings = "bge-m3"                    # the shared embedding model (the same on both supercomputers)
 
 [data]
 folder = "data"                          # where `gagnvist get-data` unpacks the data
