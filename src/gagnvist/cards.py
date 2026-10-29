@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from gagnvist.answering.choose_categories import looks_like_time, most_recent
+from gagnvist.config import ConfigError
 from gagnvist.data.catalogue import (
     CatalogueEntry,
     Dimension,
@@ -136,8 +137,23 @@ def read_cards(folder: Path, language: str | None = None) -> list[dict[str, Any]
         path = folder / f"cards-{lang}.jsonl"
         if not path.is_file():
             raise FileNotFoundError(f"{path} not found: run `gagnvist build-cards` first")
-        with path.open(encoding="utf-8") as f:
-            cards.extend(json.loads(line) for line in f if line.strip())
+        number = 0
+        try:
+            # utf-8-sig: a file saved by a Windows program may begin with a byte-order mark
+            with path.open(encoding="utf-8-sig") as f:
+                for number, line in enumerate(f, 1):  # noqa: B007 (used in the message)
+                    if line.strip():
+                        cards.append(json.loads(line))
+        except UnicodeDecodeError:
+            raise ConfigError(
+                f"{path} is not saved as UTF-8: save it again as UTF-8 (in your own code: "
+                "open(..., encoding='utf-8'))"
+            ) from None
+        except json.JSONDecodeError as e:
+            raise ConfigError(
+                f"{path}, line {number}: not a card in JSON ({e.msg}); every line must be "
+                "one card, as in cards/cards-en.jsonl"
+            ) from None
     return cards
 
 
@@ -147,15 +163,29 @@ def search_cards(folder: Path) -> list[Card]:
 
 
 def _time_dimension(metadata: TableMetadata, partner: TableMetadata) -> Dimension | None:
-    """The table's time dimension: recognised by its name, or else at the place it has
-    in the other language's table, whose name for it is sometimes the only clear one
-    (e.g. "Tímabil" against "Season")."""
+    """The table's time dimension, looked for in this table and at the same place in the
+    other language's table, whose name for it is sometimes the only clear one: first the
+    dimension Statistics Iceland marks as time; else, of the dimensions named like time,
+    the one with the most years in its labels (a table with both Month and Year covers
+    the years). A dimension without years in its labels (Month alone, or Season) gives
+    no period."""
+    ours = metadata.dimensions
+
+    def at_same_place(i: int, described: TableMetadata) -> bool:
+        return i < len(ours) and len(ours[i].categories) == len(described.dimensions[i].categories)
+
     for described in (metadata, partner):
-        found = [i for i, d in enumerate(described.dimensions) if looks_like_time(d)]
-        if found and found[0] < len(metadata.dimensions):
-            dimension = metadata.dimensions[found[0]]
-            if len(dimension.categories) == len(described.dimensions[found[0]].categories):
-                return dimension
+        flagged = [i for i, d in enumerate(described.dimensions) if d.is_time]
+        if flagged and at_same_place(flagged[0], described):
+            return ours[flagged[0]]
+    named = [
+        (sum(bool(_YEAR.search(c.label)) for c in ours[i].categories), -i, i)
+        for described in (metadata, partner)
+        for i, d in enumerate(described.dimensions)
+        if looks_like_time(d) and at_same_place(i, described)
+    ]
+    if named and max(named)[0] > 0:
+        return ours[max(named)[2]]
     return None
 
 

@@ -14,8 +14,10 @@ without unpacking the data.
 | `pairs.csv` | the 1,886 tables, with the Icelandic and English codes, titles and folders side by side |
 | `language-differences.csv` | the tables whose numbers are not the same in both languages, and how they differ |
 
-The two CSV files open in Excel, Numbers or LibreOffice. They are saved as UTF-8 with a
-byte-order mark, so Icelandic letters show correctly.
+The three CSV files open in Excel, Numbers or LibreOffice. They are saved as UTF-8 with a
+byte-order mark, so Icelandic letters show correctly. Their columns are separated by
+commas: if Excel shows everything in one column (as it does with Icelandic regional
+settings, which expect semicolons), open the file with *Data*, *From Text/CSV* instead.
 
 ## A card
 
@@ -53,7 +55,7 @@ The English card of MAN02005, with the categories cut short (the file has all of
 | `title` | Statistics Iceland's title for the table, in the card's language |
 | `other_language_title` | the same table's title in the other language |
 | `dataset` | Population, Society, Economy, Business_Sectors or Environment |
-| `subject_path` | where the table sits in Statistics Iceland's API, below the dataset |
+| `subject_path` | where the table sits in Statistics Iceland's API, below the dataset (two folder names were made safe for every system: `verdvisitolur eldra` is `verdvisitolur_eldra`, `2_byrðihusnaediskostnadar` is `2_byrdihusnaediskostnadar`) |
 | `period` | the time the table covers: the time dimension's name, its earliest and latest period, and how many periods; `null` if the table has no time dimension |
 | `dimensions` | every dimension with every category, codes and labels, as the API describes them; `is_time` is Statistics Iceland's own mark, which about half the tables have |
 | `cells` | how many numbers the table holds |
@@ -62,21 +64,22 @@ The English card of MAN02005, with the categories cut short (the file has all of
 
 ## Where the values come from
 
-- **Titles** are Statistics Iceland's, as its website lists them. Each was checked
-  against the title inside the table's own px file, in the same language: they agree
-  for all 3,772. Two things were repaired: runs of spaces are made one (190 titles),
-  and six census titles (CEN0031 to CEN0033, in both languages) had a broken dash,
-  which the API sends as a control character.
+- **Titles** are Statistics Iceland's, as its website lists them, and they agree with
+  the description inside each table's own px file (its `DESCRIPTION`, in the same
+  language) for all 3,772. The cards' titles get two repairs: extra spaces are removed
+  (190 titles), and six census titles (CEN0031 to CEN0033, in both languages) had a
+  broken dash, which the API sends as a control character.
 - **Dimensions and categories** are copied from each table's `metadata.json`, repaired
-  in the same way: 1,171 category labels in 58 tables had Windows quote marks or dashes
+  in the same way: 1,171 category labels in 58 cards (36 tables; some in both languages) had Windows quote marks or dashes
   sent as control characters (`0\x9619 ára` is `0–19 ára` here), and many had runs
   of spaces. The data files themselves are left exactly as Statistics Iceland
   published them.
-- **The period** comes from the time dimension. It is recognised by its name (Year, Ár,
-  Month, Mánuður, Quarter, Period, ...) in either language: when only one language's
-  name is clear, as with "Tímabil" and "Season", both cards use it. The earliest and
-  latest periods are found from the years in the labels. 3,254 cards have a period; 518
-  have none, such as a census or a single election.
+- **The period** comes from the time dimension: the one Statistics Iceland marks as
+  time, or else the one named like time (Year, Ár, Month, Quarter, Theatrical season,
+  ...) in either language with the most years in its labels, so a table with both Month
+  and Year gets the years. The earliest and latest periods are found from the years in
+  the labels. 3,264 cards have a period; 508 have none, such as a census, a single
+  election, or a table of months without years.
 - **`text`** is made by `card_text` in `src/gagnvist/search/vector_search.py`.
 
 ## Both languages
@@ -98,20 +101,31 @@ languages). [language-differences.csv](language-differences.csv) lists them:
 | Difference | Tables | What it means |
 |---|---:|---|
 | `rounding` | 35 | the same numbers; one language shows fewer decimals |
-| `same numbers, other order` | 13 | the same numbers under categories in another order: match categories by meaning, not position |
-| `different categories` | 8 | one language has more or fewer categories, or an extra dimension |
-| `numbers differ` | 73 | some numbers differ, often in a few cells (a revision made in one language only) |
+| `same numbers, other cells` | 19 | exactly the same numbers, but not all in the same cells, usually because a dimension's categories come in another order: match categories by meaning, not position |
+| `different categories` | 9 | one language has more or fewer categories, or an extra dimension |
+| `numbers differ` | 66 | some numbers differ, often in a few cells (a revision made in one language only) |
 
 Keep this in mind when an Icelandic and an English question should give the same
 number.
 
 A few more things are kept as Statistics Iceland publishes them:
 
-- in 7 tables the code differs between the languages, e.g. VIN06101 in Icelandic is
+- in 7 other tables the code differs between the languages, e.g. VIN06101 in Icelandic is
   VIN08601 in English (`pairs.csv` shows both);
 - SJA07002's English title is in Icelandic (its labels are in English);
 - a few tables name a dimension differently in the two languages, or give it a
-  placeholder name such as `stub1`.
+  placeholder name such as `stub1`;
+- in a few tables a category's label does not match its code. In the English SKO03200
+  the labels of the years are shifted by one place. In the Icelandic SJA01101 the labels
+  2022 and 2023 are swapped, as are 2020 and 2021 in the English MID00101: the numbers
+  follow the codes, so the Icelandic cell labelled 2022 holds the catch of 2023. In the
+  English SAM02002, STI03204 and SKO02104 one year is mistyped (2025 for 2024, 2016 for
+  2019, 2022 for 2002). A card's `period` is read from the labels, so for these tables
+  it is off;
+- 43 codes in each language appear in two or three folders: usually for different
+  tables (MAN10001 is the quarterly population by municipality, and also the population
+  by religious and life stance organisations), sometimes for the same table twice. So a
+  table is found by its `folder`, not its code.
 
 ## Richer cards
 

@@ -2,6 +2,7 @@
 
 import csv
 import json
+import math
 import shutil
 from collections import Counter
 from contextlib import closing
@@ -10,9 +11,10 @@ from pathlib import Path
 import pytest
 from conftest import write_settings
 
-from gagnvist.cards import make_table_cards, read_cards, save_cards, search_cards
+from gagnvist.cards import _time_dimension, make_table_cards, read_cards, save_cards, search_cards
 from gagnvist.cli import main
-from gagnvist.data.catalogue import read_metadata
+from gagnvist.config import ConfigError
+from gagnvist.data.catalogue import Category, Dimension, TableMetadata, read_metadata
 from gagnvist.search.table_index import TableIndex
 from gagnvist.search.vector_search import Card, card_text, make_cards
 
@@ -84,6 +86,27 @@ def test_missing_cards_say_how_to_make_them(tmp_path: Path) -> None:
         search_cards(tmp_path)
 
 
+def test_cards_saved_by_windows_tools_are_read_or_explained(
+    data_folder: Path, tmp_path: Path
+) -> None:
+    save_cards(make_table_cards(data_folder), tmp_path)
+    english = tmp_path / "cards-en.jsonl"
+    text = english.read_text(encoding="utf-8")
+    expected = read_cards(tmp_path, "en")
+    # with a byte-order mark and Windows line endings, as Notepad or PowerShell save it
+    english.write_bytes(b"\xef\xbb\xbf" + text.replace("\n", "\r\n").encode("utf-8"))
+    assert read_cards(tmp_path, "en") == expected
+    # in Windows' own encoding, as open(path, "w") wrote it before Python 3.15
+    english.write_bytes(text.encode("cp1252", errors="replace"))
+    with pytest.raises(ConfigError, match="not saved as UTF-8"):
+        read_cards(tmp_path, "en")
+    english.write_text(text + "{not json\n", encoding="utf-8")
+    with pytest.raises(
+        ConfigError, match=rf"cards-en\.jsonl, line {len(expected) + 1}: not a card"
+    ):
+        read_cards(tmp_path, "en")
+
+
 def test_the_build_cards_command_keeps_existing_cards(
     data_folder: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -120,6 +143,13 @@ def test_the_language_differences_name_real_pairs() -> None:
     with path.open(encoding="utf-8-sig", newline="") as f:
         rows = list(csv.DictReader(f))
     assert rows
+    assert len({row["pair"] for row in rows}) == len(rows)  # one row per pair
+    cells = {}
+    with (REPOSITORY / "cards" / "cards-is.jsonl").open(encoding="utf-8") as f:
+        for line in f:
+            card = json.loads(line)
+            listed = math.prod(len(d["categories"]) for d in card["dimensions"])
+            cells[card["pair"]] = max(card["cells"], listed)  # THJ06023's file lacks a category
     for row in rows:
         pair = pairs[row["pair"]]
         assert (row["table_code_is"], row["table_code_en"]) == (
@@ -129,6 +159,30 @@ def test_the_language_differences_name_real_pairs() -> None:
         assert row["difference"] in {
             "numbers differ",
             "different categories",
-            "same numbers, other order",
+            "same numbers, other cells",
             "rounding",
         }
+        if row["cells_compared"]:  # the comparison was of this pair, not of a namesake
+            assert int(row["cells_compared"]) <= cells[row["pair"]], row["pair"]
+
+
+def _dimension(label: str, labels: list[str], is_time: bool = False) -> Dimension:
+    return Dimension(
+        label, label, tuple(Category(str(i), x) for i, x in enumerate(labels)), is_time
+    )
+
+
+def test_the_period_is_the_years_not_the_months() -> None:
+    months = _dimension("Month", ["Total", "January", "December"])
+    years = _dimension("Year", ["2024", "2025", "2026"], is_time=True)
+    table = TableMetadata("Overnight stays", (months, years))
+    assert _time_dimension(table, table) is years  # the dimension marked as time
+    unmarked = TableMetadata("Sunshine", (months, _dimension("Year", ["1949", "2024"])))
+    assert _time_dimension(unmarked, unmarked) == unmarked.dimensions[1]  # the one with years
+    seasons = _dimension("Theatrical season", ["2000-2001", "2019/2020"])
+    assert (
+        _time_dimension(TableMetadata("Theatres", (seasons,)), TableMetadata("Leikhús", (seasons,)))
+        is seasons
+    )
+    birthdays = TableMetadata("Birthdays", (months, _dimension("Day", ["1", "31"])))
+    assert _time_dimension(birthdays, birthdays) is None  # months without years are no period

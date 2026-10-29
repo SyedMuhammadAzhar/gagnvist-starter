@@ -38,7 +38,8 @@ _TOTAL_STARTS = ("all ", "allir", "allt ", "whole country", "landið")
 _NOT_TOTAL_MARKS = ("%", "percent", "prósent", "hlutfall", "share", "proportion",
                     "of total", "af heild", "alls staðar")  # fmt: skip
 # Names of time dimensions (by code or label).
-_TIME_NAMES = {"ár", "year", "mánuður", "month", "ársfjórðungur", "quarter", "tímabil", "period"}
+_TIME_NAMES = {"ár", "year", "mánuður", "month", "ársfjórðungur", "quarter", "tímabil", "period",
+               "leikár", "theatrical season", "skólaár", "academic year"}  # fmt: skip
 _YEAR = re.compile(r"(?<!\d)(?:1[89]\d\d|20\d\d)(?!\d)")
 # Periods within a year written as codes: 2026M06 (month), 2026Q2 or 2026K2 (quarter).
 _PERIOD_CODE = re.compile(r"(\d{4})[MQKH](\d{1,2})")
