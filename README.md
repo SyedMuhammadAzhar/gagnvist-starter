@@ -40,6 +40,7 @@ Have these ready before you start:
 |---|---|
 | Your LUMI username, and the SSH key you use for LUMI | your LUMI account: see [docs/lumi.md](docs/lumi.md#1-your-lumi-account) |
 | Your team's key | the organizers give it to your team privately |
+| If the organizers say the models also run on JURECA: your JuDoor username and the key you registered there | your JURECA account: see [docs/jureca.md](docs/jureca.md#1-your-jureca-account) |
 | Access to this repository on GitHub | the organizers add your GitHub account |
 | About 8 GB of free disk space | the unpacked data takes 5.7 GB, and unpacking needs room for the zip too |
 
@@ -107,7 +108,11 @@ flowchart LR
 
 The models run on [LUMI](https://www.lumi-supercomputer.eu/), the supercomputer in
 Kajaani, Finland. The organizers run a shared chat model and a shared embedding model
-for everyone; you can also run models of your own there. The tables themselves are on
+for everyone; you can also run models of your own there. The same two models also run
+on [JURECA](https://apps.fz-juelich.de/jsc/hps/jureca/) in Jülich, Germany, so that one
+supercomputer can stand in for the other: the same commands, with `jureca` in place of
+`lumi`, and `--cluster jureca` (or `GAGNVIST_CLUSTER=jureca` in `.env`) to send your
+questions there (see [docs/jureca.md](docs/jureca.md)). The tables themselves are on
 your computer. [docs/how-it-works.md](docs/how-it-works.md) explains every step in
 detail.
 
@@ -125,8 +130,12 @@ detail.
 | `gagnvist build-cards` | write every table's card, in both languages, into `cards/` (they come with the repository; `--replace` writes them again) |
 | `gagnvist build-vectors` | embed the text of every card in `cards/` into a new vector index |
 | `gagnvist lumi ...` | the tunnel to the shared models, and models of your own: see [docs/lumi.md](docs/lumi.md) |
+| `gagnvist jureca ...` | the same on JURECA, the second supercomputer: see [docs/jureca.md](docs/jureca.md) |
 
-Every command has `--help`.
+Every command has `--help`. The commands that use the models (`ask`, `evaluate`,
+`find-tables`, `try-models`, `build-vectors`) take `--cluster lumi` or `--cluster
+jureca` to say whose shared models to use; without it, `GAGNVIST_CLUSTER` in `.env`
+decides, and without that, LUMI.
 
 ## Making it better
 
@@ -199,7 +208,9 @@ src/gagnvist/
     answering/           the four steps: find_tables, choose_categories,
                          read_numbers, write_answer, joined in pipeline.py
     evaluate.py          gagnvist evaluate
-    lumi/                LUMI: ssh, tunnels, your own jobs, and the job scripts
+    lumi/                the supercomputers: ssh, tunnels, your own jobs, and the job
+                         scripts (written for LUMI; the same code serves JURECA)
+    clusters/            what differs between LUMI and JURECA: one profile each
 data-release/            the data, zipped (in pieces, as GitHub refuses large files)
 data/                    the data, unpacked by gagnvist get-data (not in git)
 local/                   made on your computer: the table database, saved evaluations,
@@ -208,7 +219,7 @@ questions/               questions with known answers
 cards/                   every table's card, in Icelandic and English: titles, dimensions,
                          categories, periods (see cards/README.md)
 index/                   the vector index of the table cards (shipped by the organizers)
-docs/                    setup guides (Mac, Windows), how it works, the data, LUMI
+docs/                    setup guides (Mac, Windows), how it works, the data, LUMI, JURECA
 tests/                   the tests, a miniature copy of the data, and stand-ins for
                          the models and for LUMI
 ```

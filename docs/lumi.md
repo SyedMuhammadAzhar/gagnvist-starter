@@ -9,6 +9,10 @@ Everything below goes through the `gagnvist lumi` commands, which only run `ssh`
 you. You never need to log in to LUMI yourself, except once at the start, and to store
 a Hugging Face token if you want a gated model (section 6).
 
+The same two models also run on JURECA, a second supercomputer, and the same commands
+exist for it (`gagnvist jureca ...`): see [jureca.md](jureca.md) for what differs
+there, and for switching between the two.
+
 - [1. Your LUMI account](#1-your-lumi-account)
 - [2. Log in once by hand](#2-log-in-once-by-hand)
 - [3. Your passphrase](#3-your-passphrase)
@@ -80,7 +84,7 @@ remember the unlocked key instead, and `gagnvist lumi check` and `gagnvist lumi 
 offer to give it the key when it does not hold it yet:
 
 ```text
-Your SSH key has a passphrase, which ssh asks for every time it connects to LUMI.
+Your SSH key has a passphrase, which ssh asks for every time it connects.
 The SSH agent can remember it for a while, so that ssh stops asking.
 For how long? For example 2h, 12h or 2d (at most 7d).
 Press Enter for 12h, or type 0 to be asked every time: 2d

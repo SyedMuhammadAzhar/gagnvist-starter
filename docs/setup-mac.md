@@ -103,6 +103,10 @@ GAGNVIST_TEAM_KEY=paste-your-team-key-here
 `.env` stays on your computer: git ignores it, so it is never committed or pushed.
 (Finder hides files whose names begin with a dot; `Cmd+Shift+.` shows them.)
 
+If the organizers say the shared models also run on JURECA, the second supercomputer, two more
+lines go here (`GAGNVIST_JURECA_USERNAME`, `GAGNVIST_JURECA_SSH_KEY`): see
+[docs/jureca.md](jureca.md#2-your-settings). LUMI alone is enough to start.
+
 ## 5. Unpack the data
 
 The data comes with the repository: Statistics Iceland's tables in both languages.
@@ -147,7 +151,7 @@ gagnvist lumi check
 If your key has a passphrase, it first asks how long to remember it:
 
 ```text
-Your SSH key has a passphrase, which ssh asks for every time it connects to LUMI.
+Your SSH key has a passphrase, which ssh asks for every time it connects.
 The SSH agent can remember it for a while, so that ssh stops asking.
 For how long? For example 2h, 12h or 2d (at most 7d).
 Press Enter for 12h, or type 0 to be asked every time:

@@ -146,6 +146,10 @@ GAGNVIST_TEAM_KEY=paste-your-team-key-here
 
 `.env` stays on your computer: git ignores it, so it is never committed or pushed.
 
+If the organizers say the shared models also run on JURECA, the second supercomputer, two more
+lines go here (`GAGNVIST_JURECA_USERNAME`, `GAGNVIST_JURECA_SSH_KEY`): see
+[docs/jureca.md](jureca.md#2-your-settings). LUMI alone is enough to start.
+
 A key made with PuTTY (a `.ppk` file) must first be converted: in PuTTYgen, load it and
 choose *Conversions*, *Export OpenSSH key*, and use the exported file.
 
@@ -194,7 +198,7 @@ gagnvist lumi check
 If your key has a passphrase, it first offers to remember it:
 
 ```text
-Your SSH key has a passphrase, which ssh asks for every time it connects to LUMI.
+Your SSH key has a passphrase, which ssh asks for every time it connects.
 The SSH agent can remember it until you remove it. Remember it? [Y/n]
 ```
 
