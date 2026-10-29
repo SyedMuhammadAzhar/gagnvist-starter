@@ -28,11 +28,13 @@ answer, in about 20 minutes plus a download of about 300 MB:
 
 - **[Setting up on a Mac](docs/setup-mac.md)**
 - **[Setting up on Windows](docs/setup-windows.md)**
-- On Linux, follow the Mac guide, with two differences: install git, Python 3.11 or
+- On Linux, follow the Mac guide, with three differences: install git, Python 3.11 or
   newer with its venv module, and `openssh-client` from your package manager (on
   Ubuntu 22.04, whose `python3` is 3.10: `python3.11` and `python3.11-venv`, then
-  `python3.11 -m venv .venv` in step 3), and edit `.env` with any text editor (for
-  example `nano .env`) instead of TextEdit.
+  `python3.11 -m venv .venv` in step 3); edit `.env` with any text editor (for
+  example `nano .env`) instead of TextEdit; and if `gagnvist lumi check` says no SSH
+  agent is running, start one in that terminal with `eval "$(ssh-agent)"`
+  ([docs/lumi.md, section 3](docs/lumi.md#3-your-passphrase)).
 
 Have these ready before you start:
 
