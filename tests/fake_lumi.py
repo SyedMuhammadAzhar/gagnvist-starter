@@ -1,10 +1,12 @@
-"""A fake LUMI for the tests: ssh, Slurm and singularity, all on this computer.
+"""A fake LUMI (or JURECA) for the tests: ssh, Slurm and the container runtime, all on
+this computer.
 
-The fake ``ssh`` runs the script it is given right here instead of on LUMI, with
-LUMI's /scratch and /appl moved into a temporary folder. The fake Slurm commands
-(squeue, sbatch, scancel, srun) keep their queue in a JSON file, and the fake
-``singularity`` pretends to download a model, to serve one, or to fine-tune. The
-job scripts are bash, so this works on macOS and Linux only.
+The fake ``ssh`` runs the script it is given right here instead of on the
+supercomputer, with its folders (/scratch and /appl on LUMI, /p on JURECA) moved into
+a temporary folder. The fake Slurm commands (squeue, sbatch, scancel, srun) keep their
+queue in a JSON file, and the fake ``singularity`` (LUMI) and ``apptainer`` (JURECA)
+pretend to download a model, to serve one, or to fine-tune. The job scripts are bash,
+so this works on macOS and Linux only.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import os
 import re
 import stat
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -26,6 +29,10 @@ ORGANIZER = "organizer"
 PROJECT = "project_465000001"
 TEAM_KEY = "0123456789abcdef" * 3  # shaped like a real team key: 48 hex digits
 CONTAINER = "/appl/local/laifs/containers/test/lumi-multitorch-full-test.sif"
+
+# The same on the fake JURECA, where the project and its folders look different.
+JURECA_PROJECT = "training2000"
+JURECA_CONTAINER = f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/containers/vllm-test.sif"
 
 needs_posix = pytest.mark.skipif(sys.platform == "win32", reason="the job scripts are bash")
 
@@ -41,78 +48,16 @@ def save(jobs):
         json.dump(jobs, f)
 """
 
-_PROGRAMS = {
-    "ssh": """
+# The container runtime: `singularity run <container> ...` on LUMI, `apptainer exec
+# [--nv] <container> ...` on JURECA. The same fake answers to both names.
+_CONTAINER_RUNTIME = """
 args = sys.argv[1:]
-if "-N" in args:
-    sys.exit("fake ssh: tunnels are not faked")
-command = args[-1].replace("bash -lc ", "bash -c ", 1)  # no login scripts here
-for top in ("/scratch/", "/appl/"):
-    command = command.replace(top, ROOT + top)
-import subprocess
-sys.exit(subprocess.run(["sh", "-c", command]).returncode)
-""",
-    "squeue": """
-import argparse
-if os.environ.get("FAKE_SLURM_DOWN"):
-    sys.exit("slurm_load_jobs error: Socket timed out on send/recv operation")
-parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument("--me", action="store_true")
-parser.add_argument("-h", action="store_true")
-for option in ("-u", "-n", "-t", "-j", "-o"):
-    parser.add_argument(option)
-args = parser.parse_args()
-for job in load():
-    if (args.me and job["user"] != os.environ["FAKE_USER"]) \\
-            or (args.u and job["user"] != args.u) \\
-            or (args.n and job["name"] not in args.n.split(",")) \\
-            or (args.t and job["state"] != args.t) \\
-            or (args.j and job["id"] != args.j):
-        continue
-    line = args.o or "%i %j %T"
-    for code, key in (("%i", "id"), ("%j", "name"), ("%T", "state"), ("%B", "node"),
-                      ("%L", "time_left")):
-        line = line.replace(code, job[key])
-    print(line)
-""",
-    "sbatch": """
-import re
-options, files = [], []
-for argument in sys.argv[1:]:
-    if files:
-        sys.exit("fake sbatch: arguments after the script would be passed to the script")
-    (options if argument.startswith("--") else files).append(argument)
-script = open(files[0], encoding="utf-8").read() if files else sys.stdin.read()
-jobs = load()
-job_id = str(4000 + len(jobs) + 1)
-os.makedirs(os.path.join(ROOT, "slurm", "submitted"), exist_ok=True)
-submitted = os.path.join(ROOT, "slurm", "submitted", job_id)
-with open(submitted + ".sbatch", "w", encoding="utf-8") as f:
-    f.write(script)
-with open(submitted + ".options", "w", encoding="utf-8") as f:
-    json.dump(options, f)
-name = re.search(r"^#SBATCH --job-name=(\\S+)", script, re.M).group(1)
-jobs.append({"id": job_id, "name": name, "state": "PENDING", "node": "n/a",
-             "time_left": "4:00:00", "user": os.environ["FAKE_USER"]})
-save(jobs)
-print(job_id)
-""",
-    "scancel": """
-job_id = sys.argv[1]
-jobs = load()
-job = next((j for j in jobs if j["id"] == job_id), None)
-if job is None:
-    sys.exit(f"scancel: error: Invalid job id {job_id}")
-if job["user"] != os.environ["FAKE_USER"]:
-    sys.exit(f"scancel: error: Kill job error on job id {job_id}: Access/permission denied")
-jobs.remove(job)
-save(jobs)
-""",
-    "singularity": """
-command = sys.argv[3:]  # after: run <container>
+first = next(i for i, argument in enumerate(args) if argument.endswith(".sif"))
+command = args[first + 1:]  # after the container
 def record(name, **fields):
     with open(os.path.join(ROOT, name), "w", encoding="utf-8") as f:
-        json.dump({"argv": command, "pid": os.getpid(), "cwd": os.getcwd(), **fields}, f)
+        json.dump({"argv": command, "pid": os.getpid(), "cwd": os.getcwd(),
+                   "runtime": [os.path.basename(sys.argv[0]), *args[:first]], **fields}, f)
 if command[:2] == ["vllm", "serve"]:
     import http.server, socketserver, time
     name = command[command.index("--served-model-name") + 1]
@@ -167,18 +112,94 @@ elif command[0] == "python" and command[1].endswith("finetune_lora.py"):
     open(os.path.join(output, "adapter_config.json"), "w", encoding="utf-8").close()
 elif command[:2] == ["python", "-c"]:  # a download
     target = command[-1]
+    record("download-call.json")
     os.makedirs(target, exist_ok=True)
     with open(os.path.join(target, "config.json"), "w", encoding="utf-8") as f:
         json.dump({"downloaded": command[-2], "ignored": "ignore_patterns" in command[2]}, f)
 else:
-    sys.exit(f"fake singularity: unexpected command {command}")
+    sys.exit(f"fake container runtime: unexpected command {command}")
+"""
+
+_PROGRAMS = {
+    "ssh": """
+args = sys.argv[1:]
+if "-N" in args:
+    sys.exit("fake ssh: tunnels are not faked")
+command = args[-1].replace("bash -lc ", "bash -c ", 1)  # no login scripts here
+for top in ("/scratch/", "/appl/", "/p/"):
+    command = command.replace(top, ROOT + top)
+import subprocess
+sys.exit(subprocess.run(["sh", "-c", command]).returncode)
 """,
+    "squeue": """
+import argparse
+if os.environ.get("FAKE_SLURM_DOWN"):
+    sys.exit("slurm_load_jobs error: Socket timed out on send/recv operation")
+parser = argparse.ArgumentParser(add_help=False)
+parser.add_argument("--me", action="store_true")
+parser.add_argument("-h", action="store_true")
+for option in ("-u", "-n", "-t", "-j", "-o"):
+    parser.add_argument(option)
+args = parser.parse_args()
+for job in load():
+    if (args.me and job["user"] != os.environ["FAKE_USER"]) \\
+            or (args.u and job["user"] != args.u) \\
+            or (args.n and job["name"] not in args.n.split(",")) \\
+            or (args.t and job["state"] != args.t) \\
+            or (args.j and job["id"] != args.j):
+        continue
+    line = args.o or "%i %j %T"
+    for code, key in (("%i", "id"), ("%j", "name"), ("%T", "state"), ("%B", "node"),
+                      ("%L", "time_left")):
+        line = line.replace(code, job[key])
+    print(line)
+""",
+    "sbatch": """
+import re
+if os.environ.get("FAKE_SBATCH_REFUSES"):
+    sys.exit("sbatch: error: Batch job submission failed: " + os.environ["FAKE_SBATCH_REFUSES"])
+options, files = [], []
+for argument in sys.argv[1:]:
+    if files:
+        sys.exit("fake sbatch: arguments after the script would be passed to the script")
+    (options if argument.startswith("--") else files).append(argument)
+script = open(files[0], encoding="utf-8").read() if files else sys.stdin.read()
+jobs = load()
+job_id = str(4000 + len(jobs) + 1)
+os.makedirs(os.path.join(ROOT, "slurm", "submitted"), exist_ok=True)
+submitted = os.path.join(ROOT, "slurm", "submitted", job_id)
+with open(submitted + ".sbatch", "w", encoding="utf-8") as f:
+    f.write(script)
+with open(submitted + ".options", "w", encoding="utf-8") as f:
+    json.dump(options, f)
+name = re.search(r"^#SBATCH --job-name=(\\S+)", script, re.M).group(1)
+jobs.append({"id": job_id, "name": name, "state": "PENDING", "node": "n/a",
+             "time_left": "4:00:00", "user": os.environ["FAKE_USER"]})
+save(jobs)
+print(job_id)
+""",
+    "scancel": """
+job_id = sys.argv[1]
+jobs = load()
+job = next((j for j in jobs if j["id"] == job_id), None)
+if job is None:
+    sys.exit(f"scancel: error: Invalid job id {job_id}")
+if job["user"] != os.environ["FAKE_USER"]:
+    sys.exit(f"scancel: error: Kill job error on job id {job_id}: Access/permission denied")
+jobs.remove(job)
+save(jobs)
+""",
+    "singularity": _CONTAINER_RUNTIME,
+    "apptainer": _CONTAINER_RUNTIME,
 }
 _SHELL_PROGRAMS = {
     "srun": 'exec "$@"\n',
     "module": "exit 0\n",
     "whoami": 'echo "$FAKE_USER"\n',
-    "id": f'echo "$FAKE_USER {PROJECT}"\n',
+    "id": 'echo "$FAKE_USER $FAKE_GROUPS"\n',
+    # `sacctmgr show assoc ... format=partition`: one partition per line, or one empty
+    # line where the project is not split by partition (LUMI).
+    "sacctmgr": "printf '%s\\n' $FAKE_PARTITIONS\n",
 }
 
 
@@ -194,48 +215,74 @@ def make_programs(folder: Path) -> Path:
 
 
 class FakeLumi:
-    """A temporary LUMI: its folders, its queue, and the settings to reach it."""
+    """A temporary LUMI, or with ``cluster="jureca"`` a temporary JURECA: its folders,
+    its queue, and the settings to reach it."""
 
-    def __init__(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bin_folder: Path) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        bin_folder: Path,
+        cluster: str = "lumi",
+    ) -> None:
+        self.cluster = cluster
         self.root = tmp_path / "lumi"
         self.home = tmp_path / "home"
         for folder in (self.root / "slurm", self.home):
             folder.mkdir(parents=True)
         (self.root / "slurm" / "queue.json").write_text("[]", encoding="utf-8")
-        container = self.root / CONTAINER.lstrip("/")
-        container.parent.mkdir(parents=True)
-        container.touch()
+        for container in (CONTAINER, JURECA_CONTAINER):
+            path = self.root / container.lstrip("/")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.touch()
         (self.root / "scratch" / PROJECT).mkdir(parents=True)
+        (self.root / "p" / "project1" / JURECA_PROJECT).mkdir(parents=True, exist_ok=True)
 
         monkeypatch.setenv("PATH", f"{bin_folder}{os.pathsep}{os.environ['PATH']}")
         monkeypatch.setenv("HOME", str(self.home))
         monkeypatch.setenv("FAKE_ROOT", str(self.root))
         monkeypatch.setenv("FAKE_USER", USER)
+        # On JURECA, running containers needs the "container" group as well.
+        groups = PROJECT if cluster == "lumi" else f"{JURECA_PROJECT} container"
+        monkeypatch.setenv("FAKE_GROUPS", groups)
+        # JURECA lists the partitions a member's budgets allow; LUMI lists none.
+        partitions = "" if cluster == "lumi" else "dc-gpu dc-gpu-devel dc-cpu"
+        monkeypatch.setenv("FAKE_PARTITIONS", partitions)
 
         key = tmp_path / "id_ed25519_lumi"
         key.write_text("not a real key", encoding="utf-8")
-        shared = (Path(__file__).parents[1] / "gagnvist.toml").read_text(encoding="utf-8")
-        shared = re.sub(r'(?m)^project = "[^"]*"', f'project = "{PROJECT}"', shared)
-        shared = re.sub(r'(?m)^gateway_user = "[^"]*"', f'gateway_user = "{ORGANIZER}"', shared)
-        shared = shared.replace(
-            shared.split("container = ", 1)[1].split("\n", 1)[0], f'"{CONTAINER}"'
-        )
         self.config = tmp_path / "gagnvist.toml"
-        self.config.write_text(shared, encoding="utf-8")
+        self.config.write_text(_shared_settings(), encoding="utf-8")
+        personal = {
+            "GAGNVIST_LUMI_USERNAME": USER,
+            "GAGNVIST_SSH_KEY": key.as_posix(),
+            "GAGNVIST_JURECA_USERNAME": USER,
+            "GAGNVIST_JURECA_SSH_KEY": key.as_posix(),
+            "GAGNVIST_TEAM_KEY": TEAM_KEY,
+            "GAGNVIST_CLUSTER": cluster,
+        }
         (tmp_path / ".env").write_text(
-            f"GAGNVIST_LUMI_USERNAME={USER}\n"
-            f"GAGNVIST_SSH_KEY={key.as_posix()}\n"
-            f"GAGNVIST_TEAM_KEY={TEAM_KEY}\n",
-            encoding="utf-8",
+            "".join(f"{name}={value}\n" for name, value in personal.items()), encoding="utf-8"
         )
-        for name in ("GAGNVIST_LUMI_USERNAME", "GAGNVIST_SSH_KEY", "GAGNVIST_TEAM_KEY"):
+        for name in personal:
             monkeypatch.delenv(name, raising=False)  # the test's .env, not the runner's
         self.settings: Settings = load_settings(self.config)
-        self.lumi = Lumi.from_settings(self.settings)
+        self.lumi = Lumi.from_settings(self.settings, cluster)
+
+    @property
+    def project(self) -> str:
+        return PROJECT if self.cluster == "lumi" else JURECA_PROJECT
+
+    @property
+    def project_folder(self) -> Path:
+        """The project's folder on the fake file system."""
+        if self.cluster == "lumi":
+            return self.root / "scratch" / PROJECT
+        return self.root / "p" / "project1" / JURECA_PROJECT
 
     def mine(self, *parts: str) -> Path:
-        """A path in your gagnvist folder on the fake /scratch."""
-        return self.root / "scratch" / PROJECT / USER / "gagnvist" / Path(*parts)
+        """A path in your gagnvist folder on the fake /scratch (or /p/project1)."""
+        return self.project_folder / USER / "gagnvist" / Path(*parts)
 
     def add_model(self, name: str, *, complete: bool = True) -> Path:
         """A downloaded model; with ``complete=False``, a download that never finished."""
@@ -274,12 +321,37 @@ class FakeLumi:
         )
         return options
 
+    def recorded(self, name: str) -> dict[str, object]:
+        """What the fake container runtime wrote down about a call (vllm-call.json,
+        gatekeeper-call.json, finetune-call.json, download-call.json)."""
+        record: dict[str, object] = json.loads((self.root / name).read_text(encoding="utf-8"))
+        return record
+
     def write_address(self, job_id: str, **fields: object) -> None:
         folder = self.home / ".gagnvist" / "jobs"
         folder.mkdir(parents=True, exist_ok=True)
         (folder / f"{job_id}.json").write_text(
             json.dumps({"job": job_id, **fields}), encoding="utf-8"
         )
+
+
+def _shared_settings() -> str:
+    """The starter kit's gagnvist.toml, with the fake projects, organizer and containers:
+    the first value of each key is LUMI's ([lumi], [shared_services]), the second JURECA's."""
+    text = (Path(__file__).parents[1] / "gagnvist.toml").read_text(encoding="utf-8")
+    for key, values in (
+        ("project", (PROJECT, JURECA_PROJECT)),
+        ("gateway_user", (ORGANIZER, ORGANIZER)),
+        ("container", (CONTAINER, JURECA_CONTAINER)),
+    ):
+        found = iter(values)
+
+        def replacement(match: re.Match[str], key: str = key, found: Iterator[str] = found) -> str:
+            return f'{key} = "{next(found)}"'
+
+        text, count = re.subn(rf'(?m)^{key} = "[^"]*"', replacement, text)
+        assert count == 2, f"{key} is expected twice in gagnvist.toml, found {count}"
+    return text
 
 
 def make_recording_ssh(folder: Path) -> Path:

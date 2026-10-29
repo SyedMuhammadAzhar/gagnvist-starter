@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 
+from gagnvist.clusters import LUMI
 from gagnvist.lumi import jobs
 
 
@@ -57,6 +58,9 @@ class Recorder:
     def run(self, script: str, *, stdin: bytes | None = None, show_output: bool = False) -> str:
         self.scripts.append(script)
         return self.reply
+
+    cluster = LUMI  # as a Lumi knows which supercomputer it logs in to
+    label = LUMI.label
 
 
 def test_the_splitter_follows_the_windows_rules() -> None:

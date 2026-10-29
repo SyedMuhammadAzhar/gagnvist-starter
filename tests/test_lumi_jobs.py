@@ -40,6 +40,7 @@ def test_check_account_reports_project_container_and_gateway(fake_lumi: FakeLumi
     assert facts == {
         "user": USER,
         "groups": f"{USER} {PROJECT}",
+        "partitions": "",  # LUMI does not split a project's membership by partition
         "scratch": "yes",
         "container": "yes",
         "gateway": "nid007001",

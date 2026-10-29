@@ -64,6 +64,13 @@ def fake_lumi_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_pro
 
 
 @pytest.fixture
+def fake_jureca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_programs: Path) -> FakeLumi:
+    """A fake JURECA on this computer (see fake_lumi.py): the same fake, with JURECA's
+    folders, project and container runtime."""
+    return FakeLumi(tmp_path, monkeypatch, fake_programs, cluster="jureca")
+
+
+@pytest.fixture
 def standin_client() -> Iterator[ModelClient]:
     """A model client whose requests are answered by the stand-in, without a network."""
     url = "http://standin/v1"
