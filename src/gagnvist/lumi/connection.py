@@ -4,8 +4,9 @@ Everything goes through the ``ssh`` program that comes with macOS, Linux and Win
 and later, using your own key (GAGNVIST_SSH_KEY in .env). The key never leaves your
 computer, and no one else's key is ever needed.
 
-If your key has a passphrase, ssh asks for it every time it connects. Add the key to
-your SSH agent once a day (see docs/lumi.md) and it stops asking.
+If your key has a passphrase, ssh asks for it every time it connects, unless your SSH
+agent holds the key: `gagnvist lumi check` and `connect` offer to give it the key, for
+as long as you choose (see :mod:`gagnvist.lumi.agent`).
 """
 
 from __future__ import annotations
@@ -20,6 +21,13 @@ from pathlib import Path
 from gagnvist.config import ConfigError, Settings
 
 _SSH_FAILED = 255  # the exit status of ssh's own errors, as opposed to the command's
+
+
+def quoted(path: Path | str) -> str:
+    """A path to paste into a terminal: in double quotes if it has a space (which works
+    in PowerShell, Command Prompt and macOS/Linux shells alike)."""
+    text = str(path)
+    return f'"{text}"' if any(c.isspace() for c in text) else text
 
 
 class LumiError(Exception):
@@ -93,8 +101,8 @@ class Lumi:
         if "UNPROTECTED PRIVATE KEY FILE" in errors or "bad permissions" in errors:
             return (
                 f"ssh refuses to use {self.ssh_key} because others may read it. On macOS or "
-                f"Linux: chmod 600 {self.ssh_key}. On Windows, in PowerShell: "
-                f'icacls "{self.ssh_key}" /inheritance:r /grant:r "$($env:USERNAME):R"'
+                f"Linux: chmod 600 {quoted(self.ssh_key)}. On Windows, in PowerShell: "
+                f'icacls "{self.ssh_key}" /inheritance:r /grant:r "$(whoami):R"'
             )
         if "invalid format" in errors or "error in libcrypto" in errors:
             return (
@@ -108,13 +116,13 @@ class Lumi:
             return (
                 f"LUMI did not accept the SSH key {self.ssh_key} for the user "
                 f"{self.username!r}: check GAGNVIST_LUMI_USERNAME and GAGNVIST_SSH_KEY in "
-                ".env. A key you have just added in MyAccessID can take a few hours to "
+                ".env. A key you have just added in MyCSC can take a couple of hours to "
                 "reach LUMI."
             )
         if "Host key verification failed" in errors:
             return (
                 f"ssh could not verify the identity of {self.host}; connect once yourself "
-                f"with `ssh -i {self.ssh_key} {self.username}@{self.host}` and accept "
+                f"with `ssh -i {quoted(self.ssh_key)} {self.username}@{self.host}` and accept "
                 "LUMI's host key (see docs/lumi.md)"
             )
         if "Could not resolve hostname" in errors:
@@ -123,15 +131,33 @@ class Lumi:
 
 
 def _ssh_program() -> str:
-    program = shutil.which("ssh")
-    if program is None and os.name == "nt":
-        # 32-bit Python on 64-bit Windows sees System32 redirected and misses ssh there
-        windows = os.environ.get("SYSTEMROOT", r"C:\Windows")
-        candidate = Path(windows, "Sysnative", "OpenSSH", "ssh.exe")
-        program = str(candidate) if candidate.is_file() else None
+    return openssh_program("ssh")
+
+
+def _windows_openssh(name: str) -> str | None:
+    windows = os.environ.get("SYSTEMROOT", r"C:\Windows")
+    # 32-bit Python on 64-bit Windows sees System32 redirected, and finds it in Sysnative
+    for folder in ("System32", "Sysnative"):
+        candidate = Path(windows, folder, "OpenSSH", f"{name}.exe")
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def openssh_program(name: str) -> str:
+    """The path of one of OpenSSH's programs: ssh, ssh-add or ssh-keygen.
+
+    On Windows, the OpenSSH that comes with Windows is used whenever it is there, even in
+    a terminal (such as Git Bash) that finds another ssh first: only Windows' own
+    ssh-add reaches Windows' SSH agent, which its ssh uses too.
+    """
+    program = _windows_openssh(name) if os.name == "nt" else None
+    program = program or shutil.which(name)
     if program is None:
         raise LumiError(
-            "the ssh program was not found. On Windows, add it under Settings > Apps > "
-            "Optional features > OpenSSH Client; on Linux, install the openssh-client package."
+            f"the {name} program was not found. On Windows 11, add it under Settings > "
+            "System > Optional features > View features > OpenSSH Client (Windows 10: "
+            "Settings > Apps > Optional features > Add a feature); on Linux, install the "
+            "openssh-client package."
         )
     return program

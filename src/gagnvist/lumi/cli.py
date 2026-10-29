@@ -13,6 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from gagnvist.config import Settings, team_key_problem
+from gagnvist.lumi.agent import remember_key
 from gagnvist.lumi.connection import Lumi, LumiError
 from gagnvist.lumi.jobs import (
     GPU_CHOICES,
@@ -53,7 +54,9 @@ def add_lumi_commands(commands: argparse._SubParsersAction[argparse.ArgumentPars
         "connect", help="open the tunnel to the shared models (or to a server of your own)"
     )
     connect.add_argument("--job", help="connect to your own model server in this job instead")
-    connect.add_argument("--port", type=int, help="the port on this computer for the tunnel")
+    connect.add_argument(
+        "--port", type=_port, help="the port on this computer for the tunnel (1024 to 65535)"
+    )
     connect.set_defaults(command=_connect)
 
     download = sub.add_parser(
@@ -130,12 +133,24 @@ def _add_resources(
         "--partition",
         choices=PARTITIONS,
         default=PARTITIONS[0],
-        help="dev-g starts sooner but allows at most 3 hours",
+        help="dev-g, for quick tests only, often starts sooner but allows at most 3 hours",
     )
+
+
+def _port(text: str) -> int:
+    """A port number for a tunnel on this computer (below 1024 needs administrator rights)."""
+    try:
+        port = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a port number: {text!r}") from None
+    if not 1024 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"use a port from 1024 to 65535, not {port}")
+    return port
 
 
 def _check(args: argparse.Namespace, settings: Settings) -> int:
     lumi = Lumi.from_settings(settings)
+    remember_key(lumi.ssh_key)
     print(f"Logging in to {lumi.host} as {lumi.username} with the key {lumi.ssh_key} ...")
     facts = check_account(lumi, settings)
     project = settings.lumi.project
@@ -182,6 +197,7 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
 
 def _connect(args: argparse.Namespace, settings: Settings) -> int:
     lumi = Lumi.from_settings(settings)
+    remember_key(lumi.ssh_key)
     if args.job:
         address = server_address(lumi, args.job)
         port = args.port or OWN_SERVER_PORTS[address.kind]

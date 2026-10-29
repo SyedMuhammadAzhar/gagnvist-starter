@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from fake_lumi import CONTAINER, ORGANIZER, PROJECT, USER, FakeLumi, needs_posix
 
+from gagnvist.lumi import jobs
 from gagnvist.lumi.connection import LumiError
 from gagnvist.lumi.jobs import (
     MAX_JOBS,
@@ -362,3 +363,16 @@ def test_the_example_settings_pass_the_checks_used_in_job_scripts() -> None:
     assert _checked("container", container) == container
     assert _checked("name", "gagnvist-gateway") == "gagnvist-gateway"
     assert os.path.basename(container).startswith("lumi-multitorch-full-")
+
+
+def test_a_template_saved_by_notepad_still_starts_with_its_shebang(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "job_templates").mkdir()
+    (tmp_path / "job_templates" / "serve.sbatch").write_bytes(
+        b"\xef\xbb\xbf#!/bin/bash -l\r\n# \xc3\x8dsland\r\necho ok\r\n"
+    )
+    monkeypatch.setattr(jobs.resources, "files", lambda package: tmp_path)
+    text = jobs._template_text("serve.sbatch")
+    assert text.startswith("#!/bin/bash -l\n")
+    assert "\r" not in text

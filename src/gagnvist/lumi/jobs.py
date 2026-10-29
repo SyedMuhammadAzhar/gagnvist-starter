@@ -33,7 +33,7 @@ from pathlib import Path
 from gagnvist.config import Settings
 from gagnvist.lumi.connection import Lumi, LumiError
 
-# Limits agreed for the hackathon, so that no team can use up the shared GPU budget.
+# Limits the starter kit sets, so that no team can use up the shared GPU budget.
 MAX_JOBS = 2  # your jobs, running or waiting, at the same time
 GPU_CHOICES = (1, 2, 4)  # GPU chips (GCDs) per job: a model is split evenly between them
 MAX_HOURS = 12  # hours per job
@@ -537,7 +537,10 @@ def _tagged(output: str, tag: str) -> list[str]:
 
 
 def _template_text(name: str) -> str:
-    return resources.files("gagnvist.lumi").joinpath("job_templates", name).read_text("utf-8")
+    # utf-8-sig: a template edited in Notepad may begin with a byte-order mark, and sbatch
+    # wants #! as the very first characters. (Windows line endings become \n on reading.)
+    template = resources.files("gagnvist.lumi").joinpath("job_templates", name)
+    return template.read_text("utf-8-sig")
 
 
 def _tar(files: dict[str, bytes]) -> bytes:

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fake_lumi import make_recording_ssh, needs_posix
 
-from gagnvist.lumi.connection import Lumi, LumiError
+from gagnvist.lumi.connection import Lumi, LumiError, _windows_openssh
 
 pytestmark = needs_posix
 
@@ -91,3 +91,24 @@ def test_a_missing_ssh_program_is_explained(
     monkeypatch.setenv("PATH", str(tmp_path))  # a folder without ssh
     with pytest.raises(LumiError, match="OpenSSH Client"):
         Lumi("testuser", "lumi.example", tmp_path / "key").run("true")
+
+
+@pytest.mark.parametrize("folder", ["System32", "Sysnative"])
+def test_on_windows_its_own_openssh_is_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, folder: str
+) -> None:
+    program = tmp_path / folder / "OpenSSH" / "ssh-add.exe"
+    program.parent.mkdir(parents=True)
+    program.write_bytes(b"")
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path))
+    assert _windows_openssh("ssh-add") == str(program)
+    assert _windows_openssh("ssh-keygen") is None
+
+
+def test_printed_commands_quote_a_path_with_a_space() -> None:
+    from gagnvist.lumi.connection import quoted
+
+    assert quoted(Path("/Users/jon/.ssh/id_lumi")) == "/Users/jon/.ssh/id_lumi"
+    assert (
+        quoted("C:\\Users\\Jon Jonsson\\.ssh\\id_lumi") == '"C:\\Users\\Jon Jonsson\\.ssh\\id_lumi"'
+    )

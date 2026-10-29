@@ -113,3 +113,15 @@ def test_training_data_that_is_not_utf8_is_explained(tmp_path: Path) -> None:
     data.write_bytes(GOOD.replace("A.", "Árið").encode("cp1252"))
     with pytest.raises(LumiError, match="not UTF-8"):
         check_training_data(data)
+
+
+@pytest.mark.parametrize(
+    ("port", "problem"),
+    [("70000", "1024 to 65535"), ("80", "1024 to 65535"), ("x", "not a port number")],
+)
+def test_connect_refuses_a_port_it_cannot_use(
+    port: str, problem: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit):
+        main(["lumi", "connect", "--port", port])
+    assert problem in capsys.readouterr().err
