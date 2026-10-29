@@ -190,10 +190,14 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
     if not facts["scratch"]:
         root = lumi.cluster.project_root.format(project=project)
         problems.append(f"the project folder {root} cannot be seen")
-    if not facts["container"]:
-        problems.append(f"the container for model jobs was not found: {account.container}")
     for problem in problems:
         print(f"  PROBLEM: {problem}; please tell the organizers.")
+    if not facts["container"]:
+        print(
+            f"  NOTE: the container for jobs of your own is not there (yet): "
+            f"{account.container}; `download`, `start` and `finetune` wait for it, the "
+            "shared models work anyway. Tell the organizers if it stays missing."
+        )
     needed = lumi.cluster.container_group
     if needed and needed not in groups:
         print(

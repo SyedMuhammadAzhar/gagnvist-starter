@@ -497,3 +497,18 @@ def test_the_job_scripts_name_the_supercomputer_in_their_hints(fake_jureca: Fake
     assert "gagnvist jureca stop <job id>" in script
     assert "gagnvist lumi connect" not in script and "gagnvist lumi stop" not in script
     assert '"$(hostname -s)"' in script  # JURECA's nodes have dotted host names
+
+
+@needs_posix
+def test_check_tells_when_the_container_is_not_there_yet(
+    fake_jureca: FakeLumi, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The organizers may not have put the container on JURECA yet; that stops only jobs
+    of your own, so it is a NOTE, not a PROBLEM, and the shared models still count as
+    set up."""
+    (fake_jureca.root / JURECA_CONTAINER.lstrip("/")).unlink()
+    assert main(["--config", str(fake_jureca.config), "jureca", "check"]) == 0
+    printed = capsys.readouterr().out
+    assert "NOTE: the container for jobs of your own is not there (yet)" in printed
+    assert JURECA_CONTAINER in printed and "PROBLEM" not in printed
+    assert "All set. Next: gagnvist jureca connect" in printed
