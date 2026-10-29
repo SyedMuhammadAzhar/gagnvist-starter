@@ -21,6 +21,8 @@ from pathlib import Path, PurePosixPath
 
 import httpx
 
+from gagnvist.files import move_into_place
+
 log = logging.getLogger(__name__)
 
 _CHUNK_SIZE = 1 << 20  # read and write files in pieces of 1 MB
@@ -63,7 +65,8 @@ def get_data(
     """
     if target.exists() and any(target.iterdir()):
         raise DataError(
-            f"{target} already exists and is not empty; the data is not unpacked over it"
+            f"{target} already exists and is not empty; the data is not unpacked over it. "
+            "To check the data that is there: gagnvist check-data"
         )
     target.parent.mkdir(parents=True, exist_ok=True)
     for leftover in sorted(target.parent.glob(_WORK_PREFIX + "*")):
@@ -73,7 +76,11 @@ def get_data(
             leftover,
         )
     # Work next to the target, so unpacking ends with a quick rename rather than a copy.
-    with tempfile.TemporaryDirectory(prefix=_WORK_PREFIX, dir=target.parent) as work:
+    # A clean-up that fails (a file still locked on Windows) must not hide what went wrong:
+    # what is left is reported by the next get-data (see above).
+    with tempfile.TemporaryDirectory(
+        prefix=_WORK_PREFIX, dir=target.parent, ignore_cleanup_errors=True
+    ) as work:
         work_dir = Path(work)
         if zip_file is not None:
             source = zip_file
@@ -90,7 +97,7 @@ def get_data(
         unpacked = _unpack(source, work_dir / "unpacked")
         if target.exists():
             target.rmdir()  # empty, as checked above
-        unpacked.rename(target)
+        move_into_place(unpacked, target)
     return check_data(target)
 
 
@@ -195,11 +202,17 @@ def _unpack(archive: Path, destination: Path) -> Path:
                     raise DataError(
                         f"the folder {destination.parent.parent} is too deep for Windows: some "
                         f"data files would get paths longer than {_WINDOWS_PATH_LIMIT} "
-                        f"characters. Move the starter kit to a folder whose path is at least "
-                        f"{too_long} characters shorter, such as C:\\gagnvist"
+                        f"characters. Clone the starter kit again into a folder whose path "
+                        f"is at least {too_long} characters shorter, such as "
+                        f"C:\\gagnvist-starter, and set it up there (a folder that is set up "
+                        f"cannot simply be moved: its .venv remembers where it was)"
                     )
             _check_free_space(destination.parent, sum(i.file_size for i in z.infolist()), "unpack")
-            z.extractall(destination)
+            members = z.infolist()
+            for done, member in enumerate(members, 1):
+                z.extract(member, destination)
+                if done % 1000 == 0 or done == len(members):
+                    log.info("  %d of %d files unpacked", done, len(members))
     except zipfile.BadZipFile as e:
         raise DataError(f"{archive.name} is not a valid zip file") from e
     return destination / _ZIP_ROOT

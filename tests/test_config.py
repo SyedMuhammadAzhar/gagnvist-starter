@@ -1,5 +1,6 @@
 """Reading the settings: gagnvist.toml, then .env, then the environment."""
 
+import os
 import re
 import tomllib
 from pathlib import Path
@@ -190,8 +191,42 @@ def test_the_port_and_search_folders_can_be_set_in_env(tmp_path: Path) -> None:
         load_settings(write_settings(tmp_path, {"GAGNVIST_LOCAL_PORT": "eighty"}))
 
 
+@pytest.mark.skipif(os.sep != "/", reason="on Windows a backslash is a folder separator anyway")
+def test_a_search_folder_written_the_windows_way_works_here(tmp_path: Path) -> None:
+    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_SEARCH_INDEX": "local\\index-e5"}))
+    assert settings.search.index == tmp_path / "local" / "index-e5"
+
+
+def test_settings_saved_with_a_byte_order_mark_are_read(tmp_path: Path) -> None:
+    path = write_settings(tmp_path, {"GAGNVIST_LUMI_USERNAME": "me"})
+    path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
+    assert load_settings(path).lumi.username == "me"
+    path.write_bytes("# Þ\n".encode("cp1252") + path.read_bytes()[3:])
+    with pytest.raises(ConfigError, match="not saved as UTF-8"):
+        load_settings(path)
+
+
+def test_a_env_file_partly_in_utf16_is_explained(tmp_path: Path) -> None:
+    path = write_settings(tmp_path, {"GAGNVIST_LUMI_USERNAME": "me"})
+    with (tmp_path / ".env").open("ab") as f:  # as Windows PowerShell's `echo ... >> .env`
+        f.write("GAGNVIST_LOCAL_PORT=8790\r\n".encode("utf-16-le"))
+    with pytest.raises(ConfigError, match="UTF-16"):
+        load_settings(path)
+
+
 def test_a_windows_style_home_path_works_on_any_system(tmp_path: Path) -> None:
     settings = load_settings(write_settings(tmp_path, {"GAGNVIST_SSH_KEY": "~\\.ssh\\key"}))
+    assert settings.lumi.ssh_key == Path.home() / ".ssh" / "key"
+
+
+@pytest.mark.parametrize(
+    "written",
+    ["$HOME\\.ssh\\key", "$HOME/.ssh/key", "${HOME}/.ssh/key", "%USERPROFILE%\\.ssh\\key",
+     "$env:USERPROFILE\\.ssh\\key", "$Env:UserProfile\\.ssh\\key"],
+)  # fmt: skip
+def test_a_home_folder_written_as_in_a_shell_works_too(tmp_path: Path, written: str) -> None:
+    # The setup guides write $HOME\.ssh\...; .env does not expand it, so the kit does.
+    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_SSH_KEY": written}))
     assert settings.lumi.ssh_key == Path.home() / ".ssh" / "key"
 
 

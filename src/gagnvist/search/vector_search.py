@@ -94,15 +94,15 @@ class VectorIndex:
 
     @classmethod
     def load(cls, folder: Path) -> VectorIndex:
-        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
-        with (folder / "cards.jsonl").open(encoding="utf-8") as f:
+        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8-sig"))
+        with (folder / "cards.jsonl").open(encoding="utf-8-sig") as f:
             cards = [Card(**json.loads(line)) for line in f if line.strip()]
         vectors = np.load(folder / "vectors.npy").astype(np.float32)
         return cls(cards, vectors, manifest["model"])
 
     def save(self, folder: Path) -> None:
         folder.mkdir(parents=True, exist_ok=True)
-        with (folder / "cards.jsonl").open("w", encoding="utf-8") as f:
+        with (folder / "cards.jsonl").open("w", encoding="utf-8", newline="\n") as f:
             for card in self.cards:
                 f.write(json.dumps(asdict(card), ensure_ascii=False) + "\n")
         np.save(folder / "vectors.npy", self.vectors)
@@ -114,7 +114,7 @@ class VectorIndex:
             "created": datetime.now(UTC).isoformat(timespec="seconds"),
         }
         (folder / "manifest.json").write_text(
-            json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+            json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n"
         )
 
     def search(
@@ -144,4 +144,5 @@ class VectorIndex:
 def _unit_length(vectors: Vectors) -> Vectors:
     lengths = np.linalg.norm(vectors, axis=1, keepdims=True)
     lengths[lengths == 0] = 1.0
-    return (vectors / lengths).astype(np.float32)
+    unit: Vectors = (vectors / lengths).astype(np.float32)  # typed: numpy 2.4's stubs say Any
+    return unit

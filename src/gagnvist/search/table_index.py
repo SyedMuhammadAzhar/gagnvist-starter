@@ -26,6 +26,7 @@ from gagnvist.data.catalogue import (
     read_catalogue,
     read_metadata,
 )
+from gagnvist.files import move_into_place
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ def build_index(data_folder: Path, index_file: Path) -> int:
                     log.info("  indexed %s of %s tables", f"{number:,}", f"{len(entries):,}")
     finally:
         db.close()  # before the rename: Windows cannot rename a file that is open
-    partial.replace(index_file)
+    move_into_place(partial, index_file)
     return len(entries)
 
 
@@ -89,8 +90,14 @@ class TableIndex:
     def __init__(self, index_file: Path) -> None:
         if not index_file.is_file():
             raise FileNotFoundError(f"{index_file} not found: run `gagnvist build-index` first")
-        # Opened read-only. A file URI keeps characters such as "#" in the path intact.
-        self._db = sqlite3.connect(index_file.resolve().as_uri() + "?mode=ro", uri=True)
+        path = index_file.resolve()
+        if str(path).startswith("\\\\"):
+            # A Windows network share (\\server\share\...), which a file URI cannot name.
+            self._db = sqlite3.connect(path)
+            self._db.execute("PRAGMA query_only = ON")
+        else:
+            # Opened read-only. A file URI keeps characters such as "#" in the path intact.
+            self._db = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
 
     def close(self) -> None:
         self._db.close()

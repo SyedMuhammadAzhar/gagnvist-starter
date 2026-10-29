@@ -183,14 +183,18 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
             f"{path} not found: run gagnvist in the starter kit's folder, or give the "
             "settings file with --config"
         )
-    with path.open("rb") as f:
-        try:
-            raw = tomllib.load(f)
-        except tomllib.TOMLDecodeError as e:
-            raise ConfigError(
-                f"{path} is not valid TOML: {e}. (A Windows path must be written with "
-                "forward slashes, or in single quotes.)"
-            ) from e
+    try:
+        # utf-8-sig: an editor on Windows may have saved it with a byte-order mark
+        raw = tomllib.loads(path.read_bytes().decode("utf-8-sig"))
+    except UnicodeDecodeError:
+        raise ConfigError(
+            f"{path} is not saved as UTF-8: `git checkout gagnvist.toml` brings back the original"
+        ) from None
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigError(
+            f"{path} is not valid TOML: {e}. (A Windows path must be written with "
+            "forward slashes, or in single quotes.)"
+        ) from e
     base = path.resolve().parent
     env_file = base / ENV_FILE
     if not env_file.is_file() and (base / f"{ENV_FILE}.txt").is_file():
@@ -202,7 +206,13 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
     personal.update({name: os.environ[name] for name in PERSONAL_SETTINGS if name in os.environ})
     for name, value in personal.items():
         section, key = PERSONAL_SETTINGS[name]
-        raw.setdefault(section, {})[key] = _port_text(name, value) if key == "local_port" else value
+        if key == "local_port":
+            raw.setdefault(section, {})[key] = _port_text(name, value)
+        elif section == "search" and os.sep == "/":
+            # a folder written the Windows way (local\index-e5), say by a teammate
+            raw.setdefault(section, {})[key] = value.replace("\\", "/")
+        else:
+            raw.setdefault(section, {})[key] = value
 
     lumi = _section(raw, "lumi")
     shared = _section(raw, "shared_services")
@@ -272,7 +282,9 @@ def read_env_file(path: Path) -> dict[str, str]:
     one of PERSONAL_SETTINGS, so that a misspelt name is reported, not ignored.
     """
     raw = path.read_bytes()
-    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+    # UTF-16 has a zero byte in every letter of .env; a file that is partly UTF-16 (as
+    # after Windows PowerShell's `echo ... >> .env`) has no byte-order mark to tell.
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")) or b"\x00" in raw:
         raise ConfigError(
             f"{path} is saved as UTF-16 (as Windows PowerShell's `>` and Notepad's "
             "'Unicode' do): save it as UTF-8 instead (in Notepad: File, Save as, Encoding: UTF-8)"
@@ -302,9 +314,17 @@ def read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+# How a home folder is written in a shell (PowerShell, Command Prompt, macOS, Linux):
+# none of these is expanded in .env, so they are turned into ~ first.
+_HOME_WRITTEN = re.compile(
+    r"^(?:\$HOME|\$\{HOME\}|%USERPROFILE%|\$env:USERPROFILE)(?=[\\/]|$)", re.I
+)
+
+
 def _key_path(base: Path, text: str) -> Path:
-    """The SSH key's path: ``~`` is your home folder, and a relative path is relative to
-    the folder gagnvist.toml is in."""
+    """The SSH key's path: ``~`` (or ``$HOME``, ``%USERPROFILE%``, ``$env:USERPROFILE``)
+    is your home folder, and a relative path is relative to the folder gagnvist.toml is in."""
+    text = _HOME_WRITTEN.sub("~", text)
     if text.startswith("~") and os.sep == "/":
         text = "~/" + text[1:].lstrip("\\/").replace("\\", "/")  # ~\.ssh\key on macOS
     try:
