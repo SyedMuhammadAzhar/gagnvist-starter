@@ -101,16 +101,16 @@ if command[:2] == ["vllm", "serve"]:
         daemon_threads = True
     time.sleep(1)  # "loading the model"
     Server(socket_file, Answer).serve_forever()
-elif command[0] == "python" and command[1].endswith("key_proxy.py"):
+elif command[0] in ("python", "python3") and command[1].endswith("key_proxy.py"):
     record("gatekeeper-call.json")
     os.execv(sys.executable, [sys.executable, *command[1:]])  # the real gatekeeper
-elif command[0] == "python" and command[1].endswith("finetune_lora.py"):
+elif command[0] in ("python", "python3") and command[1].endswith("finetune_lora.py"):
     with open(command[1], encoding="utf-8") as f:
         record("finetune-call.json", script=f.read())
     output = command[command.index("--output") + 1]
     os.makedirs(output, exist_ok=True)
     open(os.path.join(output, "adapter_config.json"), "w", encoding="utf-8").close()
-elif command[:2] == ["python", "-c"]:  # a download
+elif command[0] in ("python", "python3") and command[1] == "-c":  # a download
     target = command[-1]
     record("download-call.json")
     os.makedirs(target, exist_ok=True)
@@ -123,8 +123,10 @@ else:
 _PROGRAMS = {
     "ssh": """
 args = sys.argv[1:]
-if "-N" in args:
+if "-N" in args or args[-1].startswith("sleep "):  # a tunnel, or one through a shared connection
     sys.exit("fake ssh: tunnels are not faked")
+if "-O" in args:  # `ssh -O cancel -L ...`: a forwarding taken out of a shared connection
+    sys.exit(0)
 command = args[-1].replace("bash -lc ", "bash -c ", 1)  # no login scripts here
 for top in ("/scratch/", "/appl/", "/p/"):
     command = command.replace(top, ROOT + top)

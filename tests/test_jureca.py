@@ -199,7 +199,7 @@ def test_check_tells_when_the_account_has_no_gpu_budget_yet(
     assert main(["--config", str(fake_jureca.config), "jureca", "check"]) == 0
     printed = capsys.readouterr().out
     assert "NOTE: your account cannot use the GPU partitions of" in printed
-    assert "(dc-gpu, dc-gpu-devel)" in printed and "JURECA-DC GPU" in printed
+    assert "(dc-gpu, dc-gpu-devel)" in printed and "JURECA-DC_GPU" in printed
     assert "All set" in printed  # the shared models work regardless
 
 
@@ -212,7 +212,7 @@ def test_a_job_slurm_refuses_for_the_partition_is_explained(
         "FAKE_SBATCH_REFUSES", "Invalid account or account/partition combination specified"
     )
     request = ServerRequest(kind="chat", model="qwen7", gpus=1, hours=1)
-    with pytest.raises(LumiError, match=r"cannot use that partition.*JURECA-DC GPU.*in JuDoor"):
+    with pytest.raises(LumiError, match=r"cannot use that partition.*JURECA-DC_GPU.*in JuDoor"):
         start_server(fake_jureca.lumi, fake_jureca.settings, request)
     assert fake_jureca.jobs() == []
     monkeypatch.setenv("FAKE_SBATCH_REFUSES", "Requested time limit is invalid")
@@ -225,7 +225,8 @@ def test_a_model_is_downloaded_with_apptainer_on_the_login_node(fake_jureca: Fak
     path = download_model(fake_jureca.lumi, fake_jureca.settings, "BAAI/bge-m3", "bge-m3")
     assert path == f"{MODELS}/bge-m3"
     assert fake_jureca.mine("models", "bge-m3", ".download-complete").exists()
-    assert fake_jureca.recorded("download-call.json")["runtime"] == ["apptainer", "exec"]
+    runtime = fake_jureca.recorded("download-call.json")["runtime"]
+    assert runtime[:3] == ["apptainer", "exec", "--bind"] and "--nv" not in runtime  # a login node
 
 
 @needs_posix
@@ -242,9 +243,9 @@ def test_a_server_job_asks_for_a_jureca_node_and_runs_vllm_with_apptainer(
     assert "#SBATCH --gres=gpu:2" in script
     assert "#SBATCH --cpus-per-task=16" in script
     assert "#SBATCH --time=3:00:00" in script
-    assert f"srun apptainer exec --nv {JURECA_CONTAINER} vllm serve {MODELS}/qwen7" in script
+    assert f"srun {JURECA.container_runtime} {JURECA_CONTAINER} vllm serve {MODELS}/qwen7" in script
     assert "--tensor-parallel-size 2" in script
-    assert f"apptainer exec --nv {JURECA_CONTAINER} python" in script  # the gatekeeper
+    assert f"{JURECA.container_runtime} {JURECA_CONTAINER} python3" in script  # the gatekeeper
     assert "class Gatekeeper" in script
     for lumi_only in ("--gpus-per-node", "--mem-per-gpu", "MIOPEN", "Local-LAIF", "singularity"):
         assert lumi_only not in script, lumi_only
@@ -306,7 +307,7 @@ def test_finetuning_on_jureca_uses_one_gpu_of_a_node(fake_jureca: FakeLumi, tmp_
     script = fake_jureca.submitted(job)
     assert "#SBATCH --gres=gpu:1" in script and "#SBATCH --partition=dc-gpu" in script
     assert "#SBATCH --cpus-per-task=8" in script
-    assert f"srun apptainer exec --nv {JURECA_CONTAINER} python" in script
+    assert f"srun {JURECA.container_runtime} {JURECA_CONTAINER} python3" in script
     assert (fake_jureca.mine("finetune", "run-1", "train.jsonl")).exists()
 
 
@@ -411,9 +412,9 @@ def test_a_jureca_server_script_runs_vllm_and_the_gatekeeper_with_apptainer(
         assert address["model"] == "qwen7" and 20000 <= int(address["port"]) < 40000
         root = tmp_path / "lumi"
         vllm = json.loads((root / "vllm-call.json").read_text(encoding="utf-8"))
-        assert vllm["runtime"] == ["apptainer", "exec", "--nv"]
+        assert vllm["runtime"] == JURECA.container_runtime.split()
         gatekeeper = json.loads((root / "gatekeeper-call.json").read_text(encoding="utf-8"))
-        assert gatekeeper["runtime"] == ["apptainer", "exec", "--nv"]
+        assert gatekeeper["runtime"] == JURECA.container_runtime.split()
     finally:
         if process.poll() is None:
             process.kill()
@@ -435,3 +436,64 @@ def test_cluster_option_sends_a_command_to_the_other_supercomputers_models(
     assert main(["--config", config, "try-models"]) == 1
     assert main(["--config", config, "try-models", "--cluster", "lumi"]) == 1
     assert ports == [8775, 8765, 8765]
+
+
+@needs_posix
+def test_a_tunnel_goes_through_the_open_connection_and_is_taken_out_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """On JURECA every command shares one ssh connection; a tunnel must use it without
+    becoming it, and its port forwarding, which the connection keeps, is cancelled when
+    the tunnel ends. On LUMI there is no shared connection and nothing to cancel."""
+    recording = make_recording_ssh(tmp_path / "recording-ssh")
+    monkeypatch.setenv("PATH", f"{recording}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("HOME", str(tmp_path))  # the connection's socket goes in ~/.ssh
+    record = tmp_path / "ssh-arguments.json"
+    monkeypatch.setenv("FAKE_SSH_RECORD", str(record))
+    jureca = Lumi("jon1", "jureca.fz-juelich.de", tmp_path / "key", JURECA)
+    assert jureca.reuses_connection()
+    jureca.open_tunnel(8775, "jrc0601", 4000).wait()
+    arguments = json.loads(record.read_text(encoding="utf-8"))
+    assert "ControlMaster=no" in arguments and "ControlMaster=auto" not in arguments
+    assert any(argument.startswith("ControlPath=") for argument in arguments)
+    assert arguments[arguments.index("-L") + 1] == "127.0.0.1:8775:jrc0601:4000"
+    # Through the open connection "-N" would end at once: a command that never ends
+    # keeps the tunnel's ssh, and so the tunnel, alive instead; its terminal (-tt) is
+    # hung up when the ssh ends, which ends the command too (checked on JURECA).
+    assert "-N" not in arguments and arguments[-1] == "sleep 2147483647"
+    assert "-tt" in arguments
+    jureca.run("true")
+    assert "ControlMaster=auto" in json.loads(record.read_text(encoding="utf-8"))
+    jureca.close_tunnel(8775, "jrc0601", 4000)
+    arguments = json.loads(record.read_text(encoding="utf-8"))
+    assert arguments[arguments.index("-O") + 1] == "cancel"
+    assert arguments[arguments.index("-L") + 1] == "127.0.0.1:8775:jrc0601:4000"
+    record.unlink()
+    lumi = Lumi("jon", "lumi.csc.fi", tmp_path / "key", LUMI)
+    assert not lumi.reuses_connection()
+    lumi.close_tunnel(8765, "nid005000", 4000)
+    assert not record.exists()  # ssh was not even called
+
+
+@needs_posix
+def test_download_is_refused_before_apptainer_without_the_container_group(
+    fake_jureca: FakeLumi, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("FAKE_GROUPS", JURECA_PROJECT)  # a member, but not of "container"
+    with pytest.raises(LumiError, match="see the messages above"):
+        download_model(fake_jureca.lumi, fake_jureca.settings, "BAAI/bge-m3", "bge-m3")
+    errors = capfd.readouterr().err
+    assert "not in the group container yet" in errors and "docs/jureca.md" in errors
+    target = fake_jureca.mine("models", "bge-m3")  # made ready, but nothing downloaded
+    assert not (target / "config.json").exists() and not (target / ".download-complete").exists()
+
+
+@needs_posix
+def test_the_job_scripts_name_the_supercomputer_in_their_hints(fake_jureca: FakeLumi) -> None:
+    fake_jureca.add_model("qwen7")
+    job = start_server(fake_jureca.lumi, fake_jureca.settings, ServerRequest("chat", "qwen7"))
+    script = fake_jureca.submitted(job)
+    assert "gagnvist jureca connect --job <job id>" in script
+    assert "gagnvist jureca stop <job id>" in script
+    assert "gagnvist lumi connect" not in script and "gagnvist lumi stop" not in script
+    assert '"$(hostname -s)"' in script  # JURECA's nodes have dotted host names
