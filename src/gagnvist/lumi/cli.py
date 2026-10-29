@@ -41,7 +41,6 @@ Command = Callable[[argparse.Namespace, Settings], int]
 # Ports on your computer for tunnels to servers of your own (the shared models use
 # [shared_services] local_port), so that a chat and an embedding server can be open at
 # once; JURECA's are in its profile, so that both supercomputers' can be open at once.
-OWN_SERVER_PORTS = LUMI.own_server_ports
 MAX_TRAINING_FILE = 100_000_000  # bytes
 
 
@@ -198,8 +197,9 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
     needed = lumi.cluster.container_group
     if needed and needed not in groups:
         print(
-            f"  NOTE: your account is not in the group {needed!r} yet, so jobs of your own "
-            f"cannot run containers there; the shared models work anyway. See {lumi.cluster.docs}."
+            f"  NOTE: your account is not in the group {needed!r} yet, so `gagnvist "
+            f"{lumi.cluster.name} download` and jobs of your own cannot run containers "
+            f"there; the shared models work anyway. See {lumi.cluster.docs}."
         )
     allowed = facts["partitions"].split()  # empty where Slurm lists no partitions (LUMI)
     if allowed and not any(partition in allowed for partition in lumi.cluster.partitions):
@@ -242,6 +242,13 @@ def _connect(args: argparse.Namespace, settings: Settings) -> int:
     lumi = _login(args, settings)
     remember_key(lumi.ssh_key)
     cluster = lumi.cluster
+    if settings.default_cluster != cluster.name:
+        print(
+            f"Note: the other commands use the shared models on "
+            f"{settings.cluster().profile.label} (for whatever a server of your own does "
+            f"not serve); to use {cluster.label}'s, add GAGNVIST_CLUSTER={cluster.name} to "
+            f".env, or --cluster {cluster.name} to each command."
+        )
     if args.job:
         address = server_address(lumi, args.job)
         port = args.port or cluster.own_server_ports[address.kind]
@@ -262,13 +269,6 @@ def _connect(args: argparse.Namespace, settings: Settings) -> int:
             print(
                 f"Note: the other commands look for the shared models on port {expected}; "
                 f"to use port {port}, set {cluster.local_port_setting}={port} in .env."
-            )
-        if settings.default_cluster != cluster.name:
-            print(
-                f"Note: the other commands use the shared models on "
-                f"{settings.cluster().profile.label}; to use {cluster.label}'s, add "
-                f"GAGNVIST_CLUSTER={cluster.name} to .env, or --cluster {cluster.name} to "
-                "each command."
             )
 
         def find_shared_models() -> tuple[str, int]:

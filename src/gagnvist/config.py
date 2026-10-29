@@ -220,7 +220,8 @@ class Settings:
             if f.read(20).startswith(b"PuTTY-User-Key-File"):
                 raise ConfigError(
                     f"{account.ssh_key} is a PuTTY key, which ssh cannot read: in PuTTYgen, "
-                    "load it and choose Conversions, Export OpenSSH key (see docs/lumi.md)"
+                    "load it and choose Conversions, Export OpenSSH key "
+                    f"(see {account.profile.docs})"
                 )
 
     def require_team_key(self) -> None:

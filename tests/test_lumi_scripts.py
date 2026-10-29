@@ -102,7 +102,7 @@ def test_the_server_publishes_its_address_privately(
 ) -> None:
     _, address, address_file = running_server
     assert address["job"] == JOB_ID and address["kind"] == "chat" and address["model"] == "qwen7"
-    assert address["node"] == subprocess.check_output(["hostname"], encoding="utf-8").strip()
+    assert address["node"] == subprocess.check_output(["hostname", "-s"], encoding="utf-8").strip()
     assert 20000 <= int(str(address["port"])) < 40000
     key = str(address["key"])
     assert len(key) == 60 and int(key, 16) >= 0

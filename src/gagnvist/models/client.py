@@ -212,9 +212,9 @@ class ModelClient:
         except httpx.HTTPError as e:  # e.g. the tunnel is open, but no server behind it
             raise ModelError(
                 f"the connection to {endpoint.url} broke off ({type(e).__name__}): the tunnel "
-                "may lead to a server that has stopped or moved. Stop `gagnvist lumi connect` "
-                "(Ctrl+C) and start it again; `gagnvist lumi check` says whether the shared "
-                "models are running"
+                "may lead to a server that has stopped or moved. Stop the `connect` command "
+                "(`gagnvist lumi connect` or `gagnvist jureca connect`, Ctrl+C) and start it "
+                "again; `... check` says whether the shared models are running"
             ) from None
         except UnicodeError:  # httpx sends only plain ASCII in headers
             raise ModelError(

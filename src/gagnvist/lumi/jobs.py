@@ -48,6 +48,7 @@ PARTITIONS = LUMI.partitions  # dev-g starts sooner but allows at most 3 hours
 JOB_NAMES = ("gagnvist-chat", "gagnvist-embeddings", "gagnvist-finetune")
 CPUS_PER_GPU = LUMI.cpus_per_gpu  # a GPU chip comes with up to 8 cores for the same price
 LOGS = "$HOME/.gagnvist/logs"  # as written in the scripts, where the shell expands $HOME
+_SLURM_SILENT = "Slurm, {label}'s job system, did not answer; try again in a minute"
 
 # Files of a model repository that vLLM does not need (other formats of the weights).
 _NOT_DOWNLOADED = [
@@ -220,7 +221,7 @@ def check_account(lumi: Lumi, settings: Settings) -> dict[str, str]:
         """
     )
     if _tagged(output, "@slurm"):
-        raise LumiError("Slurm, LUMI's job system, did not answer; try again in a minute")
+        raise LumiError(_SLURM_SILENT.format(label=lumi.label))
     facts = {}
     for tag in ("@user", "@groups", "@partitions", "@scratch", "@container", "@gateway"):
         values = _tagged(output, tag)
@@ -247,15 +248,23 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
         "snapshot_download(repo_id=sys.argv[1], local_dir=sys.argv[2], "
         f"ignore_patterns={_NOT_DOWNLOADED!r})"
     )
+    group = cluster.container_group  # the download runs in the container too
+    group_check = (
+        f'if ! id -Gn | grep -qw {group}; then echo "your account is not in the group '
+        f'{group} yet, so it cannot run containers: see {cluster.docs}" >&2; exit 4; fi'
+        if group
+        else ""
+    )
     lumi.run(
         f"""
         umask 022
         {folders.check(folders.models, folders.cache, target)}
         if [ -f {target}/.download-complete ]; then echo "Already downloaded: {target}"; exit 0; fi
+        {group_check}
         {cluster.login_modules}
         set -euo pipefail
         export HF_HUB_CACHE={folders.cache}/huggingface  # not in your small home folder
-        {cluster.login_container_runtime} {container} python -c "{download}" {repo} {target}
+        {cluster.login_container_runtime} {container} python3 -c "{download}" {repo} {target}
         touch {target}/.download-complete
         echo "Downloaded {repo} to {target}"
         """,
@@ -371,7 +380,7 @@ def list_jobs(lumi: Lumi) -> list[Job]:
         """
     )
     if _tagged(output, "@slurm"):
-        raise LumiError("Slurm, LUMI's job system, did not answer; try again in a minute")
+        raise LumiError(_SLURM_SILENT.format(label=lumi.label))
     ready = set(_tagged(output, "@ready"))
     jobs = []
     for line in _tagged(output, "@job"):
@@ -399,17 +408,18 @@ def server_address(lumi: Lumi, job: str) -> ServerAddress:
         """
     )
     if _tagged(output, "@slurm"):
-        raise LumiError("Slurm, LUMI's job system, did not answer; try again in a minute")
+        raise LumiError(_SLURM_SILENT.format(label=lumi.label))
     state = (_tagged(output, "@state") or [""])[0]
     addresses = _tagged(output, "@address")
+    name = lumi.cluster.name
     if state in ("PENDING", "CONFIGURING"):
         raise LumiError(f"job {job} is still waiting for a GPU; try again in a while")
     if state != "RUNNING":
-        raise LumiError(f"job {job} is not one of your running jobs (see: gagnvist lumi jobs)")
+        raise LumiError(f"job {job} is not one of your running jobs (see: gagnvist {name} jobs)")
     if not addresses:
         raise LumiError(
             f"job {job} is still loading its model, or is not a model server; try again in "
-            f"a minute (its log: gagnvist lumi log {job})"
+            f"a minute (its log: gagnvist {name} log {job})"
         )
     try:
         found = json.loads(addresses[0])
@@ -459,10 +469,12 @@ def render_template(name: str, cluster: Cluster = LUMI, **values: str) -> str:
     """A job script from ``job_templates/``, with every {{placeholder}} filled in.
 
     The placeholders that differ between supercomputers (the modules, the container
-    runtime, the GPU request, the GPUs' environment) come from ``cluster`` unless given.
+    runtime, the GPU request, the GPUs' environment, and the supercomputer's name for
+    the hints in the script) come from ``cluster`` unless given.
     """
     text = _template_text(name)
-    values = {**cluster.job_pieces(int(values.get("gpus", "1"))), **values}
+    pieces = cluster.job_pieces(int(values.get("gpus", "1")))
+    values = {**pieces, "cluster_name": cluster.name, **values}
     for key, value in values.items():
         placeholder = "{{" + key + "}}"
         if placeholder not in text:
@@ -495,7 +507,7 @@ def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") ->
         {check_lines}
         errors=$(mktemp)
         if ! job=$(sbatch --parsable --output="{LOGS}/%x-%j.log" {script} 2>"$errors"); then
-            echo "@refused $(head -c 600 "$errors")"; rm -f "$errors"; exit 0
+            echo "@refused $(head -c 600 "$errors" | tr '\\n' ' ')"; rm -f "$errors"; exit 0
         fi
         rm -f "$errors"
         echo "@job $job"

@@ -9,7 +9,7 @@
 # nothing in the shared project folders can change what runs. An adapter is small
 # (tens of megabytes); serve it together with its model:
 #
-#     gagnvist lumi start chat <model> --adapter {{run_name}}
+#     gagnvist {{cluster_name}} start chat <model> --adapter {{run_name}}
 #
 #SBATCH --job-name=gagnvist-finetune
 #SBATCH --account={{project}}
@@ -37,7 +37,7 @@ GAGNVIST_END_OF_SCRIPT
 {{gpu_environment}}
 export HF_HUB_OFFLINE=1  # use only the downloaded files: never wait for a download
 
-srun {{container_runtime}} {{container}} python "$work/finetune_lora.py" \
+srun {{container_runtime}} {{container}} python3 "$work/finetune_lora.py" \
     --model {{model_path}} \
     --data {{run_folder}}/train.jsonl --output {{run_folder}}/adapter \
     --epochs {{epochs}} --rank {{rank}} --learning-rate {{learning_rate}}

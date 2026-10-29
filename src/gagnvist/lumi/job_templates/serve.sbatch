@@ -9,12 +9,12 @@
 # network port for the tunnel from your computer, and lets through only requests that
 # carry the job's key: a random key made for this job alone. Once the model is loaded,
 # the port and the key are written to ~/.gagnvist/jobs/<job id>.json (in your home
-# folder, which only you can read), where `gagnvist lumi connect --job <job id>`
+# folder, which only you can read), where `gagnvist {{cluster_name}} connect --job <job id>`
 # finds them.
 #
 # Cost: the job is billed, busy or idle, until it ends (LUMI: 0.5 GPU-hours per GPU chip
 # per hour; JURECA: a whole node, 128 core-hours per hour).
-# Stop it when you are done:  gagnvist lumi stop <job id>
+# Stop it when you are done:  gagnvist {{cluster_name}} stop <job id>
 #
 #SBATCH --job-name={{job_name}}
 #SBATCH --account={{project}}
@@ -63,7 +63,7 @@ srun {{container_runtime}} {{container}} vllm serve {{model_path}} \
     --tensor-parallel-size {{gpus}} \
     {{extra_arguments}} &
 server=$!
-{{container_runtime}} {{container}} python "$work/key_proxy.py" "$work/vllm.sock" "$port" &
+{{container_runtime}} {{container}} python3 "$work/key_proxy.py" "$work/vllm.sock" "$port" &
 gatekeeper=$!
 
 # Loading the model takes a few minutes. The gatekeeper opens its port once vLLM is
@@ -76,9 +76,9 @@ until (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; do
     sleep 2
 done
 printf '{"job": "%s", "kind": "%s", "model": "%s", "node": "%s", "port": %s, "key": "%s"}\n' \
-    "$SLURM_JOB_ID" "{{kind}}" "{{request_name}}" "$(hostname)" "$port" "$GAGNVIST_KEY" \
+    "$SLURM_JOB_ID" "{{kind}}" "{{request_name}}" "$(hostname -s)" "$port" "$GAGNVIST_KEY" \
     >"$address"
-echo "Ready: {{request_name}} on $(hostname), port $port"
+echo "Ready: {{request_name}} on $(hostname -s), port $port"
 
 while kill -0 "$server" 2>/dev/null && kill -0 "$gatekeeper" 2>/dev/null; do
     sleep 2
