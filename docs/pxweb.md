@@ -74,9 +74,10 @@ parts of the hackathon.
 The data comes with the repository, zipped in `data-release/`. `gagnvist get-data`
 unpacks it into the data folder, `data/`, which holds:
 
-- `catalogue.csv`: every table in both languages, one row each: dataset, language,
-  table code, title, folder, the table's API address, when it was last updated, its
-  number of cells, and the folder of the same table in the other language;
+- `catalogue.csv`: every table in both languages, one row each; its main columns are
+  dataset, language, table code, title, folder, the table's API address, when it was
+  last updated, its number of cells, the folder of the same table in the other
+  language, and `pairing`, how the pair was confirmed;
 - a folder per table and language, `<dataset>/<is|en>/<API path>/<file name>/`, with
   (the file name is the table's name in the API, usually its code: `SAM07501e` and
   `SJA06100b` are two of the exceptions):
@@ -100,8 +101,8 @@ is the same. Five things in it are not right:
 - **Pairs.** Not every pair holds the same figures: `catalogue.csv` pairs VIS06123 and
   VIS06125 by address, although their two editions are crossed. The cards pair them by
   content (see [cards/README.md](../cards/README.md#both-languages)).
-- **`catalogue.csv`** has one more column than it lists: `pairing`, which says how each
-  pair was confirmed.
+- **`catalogue.csv`** has one more column than that README lists: `pairing`, which says
+  how each pair was confirmed.
 - **Checking on Windows** is the command `gagnvist check-data`, not a script.
 
 `gagnvist build-index` puts every table's description into one SQLite database,

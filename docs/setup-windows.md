@@ -50,8 +50,8 @@ git --version
 ssh -V
 ```
 
-It should say `OpenSSH_for_Windows_8.1` or newer; an older one means Windows needs its
-updates.
+It prints the version, for example `OpenSSH_for_Windows_8.1` or
+`OpenSSH_for_Windows_9.5`.
 
 If PowerShell says `ssh` is not recognized, add it:
 
