@@ -1,10 +1,10 @@
-"""Keeping a tunnel to a model server on LUMI open until you press Ctrl+C.
+"""Keeping a tunnel to a model server on LUMI or JURECA open until you press Ctrl+C.
 
 The tunnel ends on your computer at ``http://127.0.0.1:<port>/v1``, and only programs on
 your computer can use it. If the connection drops, for example when the laptop sleeps
 or changes network, it is opened again by itself. While it is open, it checks every
-minute that the server still answers; if the server has moved to another LUMI node (it
-was restarted there), the tunnel follows it.
+minute that the server still answers; if the server has moved to another node (it was
+restarted there), the tunnel follows it.
 """
 
 from __future__ import annotations
@@ -35,12 +35,14 @@ def hold_tunnel(
     find_server: Callable[[], tuple[str, int]],
     key: str,
     say: Callable[[str], None] = print,
+    label: str = "LUMI",
 ) -> None:
     """Open a tunnel to the server that ``find_server`` names (node, port), check that it
     answers, and keep the tunnel open until Ctrl+C.
 
     ``find_server`` is asked again before every reconnection, and whenever the server
-    stops answering, since a restarted server may run on another node.
+    stops answering, since a restarted server may run on another node. ``label`` is the
+    supercomputer's name, for the messages.
     """
     problem = port_problem(local_port)
     if problem:
@@ -60,7 +62,7 @@ def hold_tunnel(
                     time.sleep(RECONNECT_AFTER)
                     continue
 
-                say(f"Opening a tunnel: 127.0.0.1:{local_port} -> {node}:{remote_port} on LUMI")
+                say(f"Opening a tunnel: 127.0.0.1:{local_port} -> {node}:{remote_port} on {label}")
                 process = lumi.open_tunnel(local_port, node, remote_port)
                 status: int | tuple[str, int]
                 try:
@@ -68,7 +70,7 @@ def hold_tunnel(
                         connected_once = True
                         say(check_server(local_port, key))
                         say("The tunnel stays open until you press Ctrl+C.")
-                        status = _watch(process, local_port, key, node, find_server, say)
+                        status = _watch(process, local_port, key, node, find_server, say, label)
                     else:
                         status = process.wait()
                 finally:
@@ -99,8 +101,8 @@ def check_server(port: int, key: str) -> str:
         )
     except (httpx.HTTPError, UnicodeError):
         return (
-            "The tunnel is open, but the server on LUMI does not answer yet. A server that "
-            "has just started can take several minutes to load its model."
+            "The tunnel is open, but the server at its other end does not answer yet. A "
+            "server that has just started can take several minutes to load its model."
         )
     if response.status_code in (401, 403):
         hint = team_key_problem(key)
@@ -166,7 +168,8 @@ def port_problem(port: int) -> str | None:
             return None
     another_port = (
         "choose another port: for the shared models, add GAGNVIST_LOCAL_PORT=8790 (or any "
-        "free port) to .env; for a server of your own, use --port"
+        "free port; for JURECA, GAGNVIST_JURECA_LOCAL_PORT) to .env; for a server of your "
+        "own, use --port"
     )
     if failure.errno == errno.EACCES or getattr(failure, "winerror", None) == 10013:
         return (
@@ -177,9 +180,9 @@ def port_problem(port: int) -> str | None:
     if server_answers(port, "", timeout=5):
         return (
             f"port {port} on this computer is already in use by a tunnel, perhaps another "
-            "`gagnvist lumi connect` that is still open, or one that was closed badly and "
-            "left its ssh behind. Use that one, or stop it: on macOS or Linux, "
-            f"`lsof -nP -iTCP:{port} -sTCP:LISTEN` shows its PID, then `kill <PID>`; on "
+            "`gagnvist lumi connect` (or `jureca connect`) that is still open, or one that "
+            "was closed badly and left its ssh behind. Use that one, or stop it: on macOS or "
+            f"Linux, `lsof -nP -iTCP:{port} -sTCP:LISTEN` shows its PID, then `kill <PID>`; on "
             f"Windows, `netstat -ano | findstr :{port}` shows its PID, then "
             f"`taskkill /PID <PID> /F`. Or {another_port}"
         )
@@ -208,12 +211,13 @@ def _watch(
     node: str,
     find_server: Callable[[], tuple[str, int]],
     say: Callable[[str], None],
+    label: str = "LUMI",
 ) -> int | tuple[str, int]:
     """Wait while ssh runs, checking now and then that the server still answers.
 
     ssh itself keeps running when the server behind the tunnel is gone, so when the
-    server stops answering, LUMI is asked where it runs now. Returns ssh's exit status
-    when ssh ends, or the server's new (node, port) when it has moved.
+    server stops answering, the supercomputer is asked where it runs now. Returns ssh's
+    exit status when ssh ends, or the server's new (node, port) when it has moved.
     """
     failed = 0
     while True:
@@ -231,12 +235,12 @@ def _watch(
         try:
             new_node, new_port = find_server()
         except LumiError as error:
-            say(f"The server on LUMI does not answer ({error}); checking again in a minute.")
+            say(f"The server on {label} does not answer ({error}); checking again in a minute.")
             continue
         if new_node != node:
-            say(f"The server on LUMI now runs on {new_node}, not {node}: following it.")
+            say(f"The server on {label} now runs on {new_node}, not {node}: following it.")
             return new_node, new_port
-        say("The server on LUMI does not answer; it may be restarting. Checking again.")
+        say(f"The server on {label} does not answer; it may be restarting. Checking again.")
 
 
 def _stop(process: subprocess.Popen[bytes]) -> None:

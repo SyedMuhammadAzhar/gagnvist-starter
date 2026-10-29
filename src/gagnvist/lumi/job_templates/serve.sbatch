@@ -1,7 +1,9 @@
 #!/bin/bash -l
-# A model server for the GAGNVÍST hackathon, submitted by `gagnvist lumi start`.
+# A model server for the GAGNVÍST hackathon, submitted by `gagnvist lumi start` (or
+# `gagnvist jureca start`: the lines that differ between the two supercomputers come
+# from gagnvist/clusters/).
 #
-# vLLM serves the model in {{model_path}} on {{gpus}} GPU chip(s), under
+# vLLM serves the model in {{model_path}} on {{gpus}} GPU(s), under
 # the name "{{request_name}}". It listens on a socket file that only your account can
 # open. In front of it, a gatekeeper (key_proxy.py, written out below) listens on a
 # network port for the tunnel from your computer, and lets through only requests that
@@ -10,7 +12,8 @@
 # folder, which only you can read), where `gagnvist lumi connect --job <job id>`
 # finds them.
 #
-# Cost: every GPU chip costs 0.5 GPU-hours per hour, busy or idle, until the job ends.
+# Cost: the job is billed, busy or idle, until it ends (LUMI: 0.5 GPU-hours per GPU chip
+# per hour; JURECA: a whole node, 128 core-hours per hour).
 # Stop it when you are done:  gagnvist lumi stop <job id>
 #
 #SBATCH --job-name={{job_name}}
@@ -18,13 +21,11 @@
 #SBATCH --partition={{partition}}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gpus-per-node={{gpus}}
+{{gpu_request}}
 #SBATCH --cpus-per-task={{cpus}}
-#SBATCH --mem-per-gpu=60G
 #SBATCH --time={{hours}}:00:00
 
-module purge
-module load Local-LAIF lumi-aif-singularity-bindings || exit 1
+{{modules}}
 set -euo pipefail
 
 # Everything this job writes from here on can be read by you only. Its working files
@@ -52,18 +53,17 @@ cat >"$work/key_proxy.py" <<'GAGNVIST_END_OF_SCRIPT'
 {{key_proxy}}
 GAGNVIST_END_OF_SCRIPT
 
-export MIOPEN_CUSTOM_CACHE_DIR="$work/miopen-cache"
-export MIOPEN_USER_DB_PATH="$work/miopen-config"
+{{gpu_environment}}
 export VLLM_CACHE_ROOT="$work/vllm-cache"
 export HF_HUB_OFFLINE=1  # use only the downloaded files: never wait for a download
 
-srun singularity run {{container}} vllm serve {{model_path}} \
+srun {{container_runtime}} {{container}} vllm serve {{model_path}} \
     --served-model-name {{served_name}} \
     --uds "$work/vllm.sock" \
     --tensor-parallel-size {{gpus}} \
     {{extra_arguments}} &
 server=$!
-singularity run {{container}} python "$work/key_proxy.py" "$work/vllm.sock" "$port" &
+{{container_runtime}} {{container}} python "$work/key_proxy.py" "$work/vllm.sock" "$port" &
 gatekeeper=$!
 
 # Loading the model takes a few minutes. The gatekeeper opens its port once vLLM is

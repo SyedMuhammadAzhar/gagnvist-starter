@@ -1,5 +1,7 @@
 #!/bin/bash -l
-# Fine-tuning for the GAGNVÍST hackathon, submitted by `gagnvist lumi finetune`.
+# Fine-tuning for the GAGNVÍST hackathon, submitted by `gagnvist lumi finetune` (or
+# `gagnvist jureca finetune`: the lines that differ between the two supercomputers come
+# from gagnvist/clusters/).
 #
 # Trains a LoRA adapter for the model in {{model_path}} on the conversations in
 # {{run_folder}}/train.jsonl, and saves it in {{run_folder}}/adapter.
@@ -14,13 +16,11 @@
 #SBATCH --partition={{partition}}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gpus-per-node=1
+{{gpu_request}}
 #SBATCH --cpus-per-task={{cpus}}
-#SBATCH --mem-per-gpu=60G
 #SBATCH --time={{hours}}:00:00
 
-module purge
-module load Local-LAIF lumi-aif-singularity-bindings || exit 1
+{{modules}}
 set -euo pipefail
 
 # The adapter can be read by your teammates but changed by you only. The working files
@@ -34,11 +34,10 @@ cat >"$work/finetune_lora.py" <<'GAGNVIST_END_OF_SCRIPT'
 {{finetune_script}}
 GAGNVIST_END_OF_SCRIPT
 
-export MIOPEN_CUSTOM_CACHE_DIR="$work/miopen-cache"
-export MIOPEN_USER_DB_PATH="$work/miopen-config"
+{{gpu_environment}}
 export HF_HUB_OFFLINE=1  # use only the downloaded files: never wait for a download
 
-srun singularity run {{container}} python "$work/finetune_lora.py" \
+srun {{container_runtime}} {{container}} python "$work/finetune_lora.py" \
     --model {{model_path}} \
     --data {{run_folder}}/train.jsonl --output {{run_folder}}/adapter \
     --epochs {{epochs}} --rank {{rank}} --learning-rate {{learning_rate}}

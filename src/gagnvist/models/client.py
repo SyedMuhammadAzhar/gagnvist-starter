@@ -1,11 +1,12 @@
 """Talking to the language model and the embedding model.
 
-The shared models run on LUMI behind the organizers' gateway, which you reach through a
-private SSH tunnel (``gagnvist lumi connect``). The gateway speaks the API that OpenAI
-made popular and that vLLM and most model servers copy; models you start yourself
-(``gagnvist lumi start``) speak it too. So one client talks to either: only the address,
-the key and the model name differ, and the chat model and the embedding model may even
-live at different addresses ([models] in gagnvist.toml, or your own servers in .env).
+The shared models run on LUMI (or on JURECA) behind the organizers' gateway, which you
+reach through a private SSH tunnel (``gagnvist lumi connect``, ``gagnvist jureca
+connect``). The gateway speaks the API that OpenAI made popular and that vLLM and most
+model servers copy; models you start yourself (``gagnvist lumi start``) speak it too. So
+one client talks to either: only the address, the key and the model name differ, and
+the chat model and the embedding model may even live at different addresses ([models]
+in gagnvist.toml, or your own servers in .env).
 """
 
 from __future__ import annotations
@@ -69,11 +70,12 @@ class ModelClient:
     @classmethod
     def from_settings(cls, settings: Settings) -> ModelClient:
         """A client for the models in the settings: the shared models, reached through
-        the tunnel to LUMI, or your own server where .env gives its address."""
+        the tunnel to the supercomputer the settings say (``settings.cluster()``), or
+        your own server where .env gives its address."""
         models = settings.models
         if not (models.chat_url and models.embeddings_url):
             settings.require_team_key()
-        gateway = f"http://127.0.0.1:{settings.shared_services.local_port}/v1"
+        gateway = f"http://127.0.0.1:{settings.cluster().local_port}/v1"
         team_key = settings.shared_services.team_key
         return cls(
             chat=Endpoint(
@@ -198,8 +200,8 @@ class ModelClient:
         except httpx.ConnectError:
             raise ModelError(
                 f"cannot reach the model server at {endpoint.url}: is the tunnel to LUMI "
-                "open? (`gagnvist lumi connect`, or `gagnvist lumi connect --job ...` for "
-                "a server of your own)"
+                "(or JURECA) open? (`gagnvist lumi connect`, `gagnvist jureca connect`, or "
+                "`... connect --job ...` for a server of your own)"
             ) from None
         except httpx.TimeoutException:
             raise ModelError(

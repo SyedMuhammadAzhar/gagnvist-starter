@@ -1,7 +1,8 @@
-"""Your own work on LUMI: models, model servers and fine-tuning jobs.
+"""Your own work on LUMI or JURECA: models, model servers and fine-tuning jobs.
 
-Everything here runs under your own LUMI account, so Slurm itself guarantees that you
-can only see the details of, and stop, your own jobs. Your files live in two places:
+Everything here runs under your own account, so Slurm itself guarantees that you can
+only see the details of, and stop, your own jobs. Your files live in two places (the
+folders of LUMI; JURECA's are in :mod:`gagnvist.clusters.jureca`):
 
     /scratch/<project>/<username>/gagnvist/   models, fine-tuning runs and caches;
                                               your teammates can read them, but only
@@ -10,13 +11,16 @@ can only see the details of, and stop, your own jobs. Your files live in two pla
                                               running server (your home folder, which
                                               only you can read)
 
-Each function sends one short script to a LUMI login node (see :class:`Lumi`). The
-values put into the scripts are checked against strict patterns first (see
-:func:`_checked`), so that a typing mistake cannot turn into a different command.
+Each function sends one short script to a login node (see :class:`Lumi`, which knows
+which supercomputer it logs in to). The values put into the scripts are checked against
+strict patterns first (see :func:`_checked`), so that a typing mistake cannot turn into
+a different command. What differs between the two supercomputers (folders, partitions,
+limits, the container runtime, the lines of a job script that ask for GPUs) comes from
+the supercomputer's :class:`~gagnvist.clusters.profile.Cluster`.
 
 Every member of the hackathon's project can create and rename folders at the top of
-the project's /scratch folder. So the scripts check that your folders there belong to
-you before using them, and the jobs never run a program kept there: the training script
+the project's folder. So the scripts check that your folders there belong to you
+before using them, and the jobs never run a program kept there: the training script
 and the gatekeeper of a server travel inside the job script itself.
 """
 
@@ -30,17 +34,19 @@ from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
+from gagnvist.clusters import LUMI, Cluster
 from gagnvist.config import Settings
 from gagnvist.lumi.connection import Lumi, LumiError
 
-# Limits the starter kit sets, so that no team can use up the shared GPU budget.
-MAX_JOBS = 2  # your jobs, running or waiting, at the same time
-GPU_CHOICES = (1, 2, 4)  # GPU chips (GCDs) per job: a model is split evenly between them
-MAX_HOURS = 12  # hours per job
-PARTITIONS = ("small-g", "dev-g")  # dev-g starts sooner but allows at most 3 hours
+# LUMI's limits, as the starter kit sets them so that no team can use up the shared GPU
+# budget; each supercomputer's are in its profile (gagnvist/clusters/).
+MAX_JOBS = LUMI.max_jobs  # your jobs, running or waiting, at the same time
+GPU_CHOICES = LUMI.gpu_choices  # GPU chips (GCDs) per job: a model is split evenly between them
+MAX_HOURS = LUMI.partition_hours[LUMI.partitions[0]]  # hours per job
+PARTITIONS = LUMI.partitions  # dev-g starts sooner but allows at most 3 hours
 
 JOB_NAMES = ("gagnvist-chat", "gagnvist-embeddings", "gagnvist-finetune")
-CPUS_PER_GPU = 7  # LUMI bills a GPU chip at 0.5 GPU-hours per hour up to 8 cores and 64 GB
+CPUS_PER_GPU = LUMI.cpus_per_gpu  # a GPU chip comes with up to 8 cores for the same price
 LOGS = "$HOME/.gagnvist/logs"  # as written in the scripts, where the shell expands $HOME
 
 # Files of a model repository that vLLM does not need (other formats of the weights).
@@ -49,13 +55,13 @@ _NOT_DOWNLOADED = [
     "flax_model*", "tf_model*", "rust_model*", "coreml/*",
 ]  # fmt: skip
 
+# The same on every supercomputer; a project name and a full path are checked against
+# the supercomputer's own pattern (see _checked).
 _PATTERNS = {
     "username": r"[a-z][a-z0-9_-]*",
-    "project": r"project_\d+",
     "container": r"/[A-Za-z0-9_./-]+\.sif",
     "repo": r"[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*",
     "name": r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}",
-    "path": r"/(?:scratch|project|flash)/project_\d+/[A-Za-z0-9_./-]+",
     "job": r"\d+",
     "node": r"[a-z0-9-]+",
 }
@@ -75,21 +81,24 @@ own_folder() {
 
 @dataclass(frozen=True)
 class Folders:
-    """Where gagnvist keeps your files in the project's /scratch folder on LUMI."""
+    """Where gagnvist keeps your files in the project's folder on the supercomputer."""
 
     project: str
     username: str
+    cluster: Cluster = LUMI
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> Folders:
+    def from_settings(cls, settings: Settings, cluster: Cluster = LUMI) -> Folders:
+        account = settings.cluster(cluster.name)
         return cls(
-            _checked("project", settings.lumi.project),
-            _checked("username", settings.lumi.username),
+            _checked("project", account.project, cluster),
+            _checked("username", account.username),
+            cluster,
         )
 
     @property
     def yours(self) -> str:
-        return f"/scratch/{self.project}/{self.username}"
+        return self.cluster.folder(self.project, self.username)
 
     @property
     def base(self) -> str:
@@ -142,10 +151,10 @@ class ServerRequest:
     """What `gagnvist lumi start` asks for."""
 
     kind: str  # "chat" or "embeddings"
-    model: str  # a model folder name in your models folder, or a full path on LUMI
+    model: str  # a model folder name in your models folder, or a full path there
     gpus: int = 1
     hours: int = 4
-    partition: str = "small-g"
+    partition: str = ""  # the supercomputer's usual partition (small-g, dc-gpu) unless given
     context: int = 8192  # the longest conversation (prompt and answer), in tokens
     adapter: str = ""  # the name of one of your fine-tuning runs, to serve with the model
 
@@ -161,7 +170,7 @@ class FinetuneRequest:
     rank: int = 16
     learning_rate: float = 2e-4
     hours: int = 2
-    partition: str = "small-g"
+    partition: str = ""  # the supercomputer's usual partition unless given
 
 
 def find_gateway(lumi: Lumi, settings: Settings) -> str:
@@ -170,9 +179,10 @@ def find_gateway(lumi: Lumi, settings: Settings) -> str:
     Slurm shows every user which node a job runs on, so this asks Slurm for the running
     job of the organizer named in gagnvist.toml; only that account can start or stop it.
     """
-    settings.require_gateway()
-    user = _checked("username", settings.shared_services.gateway_user)
-    job = _checked("name", settings.shared_services.gateway_job)
+    settings.require_gateway(lumi.cluster.name)
+    account = settings.cluster(lumi.cluster.name)
+    user = _checked("username", account.gateway_user)
+    job = _checked("name", account.gateway_job)
     output = lumi.run(f"squeue -u {user} -n {job} -t RUNNING -h -o '@node %B'")
     nodes = _tagged(output, "@node")
     if not nodes:
@@ -184,17 +194,23 @@ def find_gateway(lumi: Lumi, settings: Settings) -> str:
 
 
 def check_account(lumi: Lumi, settings: Settings) -> dict[str, str]:
-    """What LUMI says about your account: user name, groups, the gateway's node, and
-    whether the project folder and the container for model jobs can be found."""
-    folders = Folders.from_settings(settings)
-    gateway_user = _checked("username", settings.shared_services.gateway_user)
-    gateway_job = _checked("name", settings.shared_services.gateway_job)
-    container = _checked("container", settings.lumi.container)
+    """What the supercomputer says about your account: user name, groups, the partitions
+    the project lets you use (empty where Slurm does not list them, as on LUMI), the
+    gateway's node, and whether the project folder ("scratch") and the container for
+    model jobs can be found."""
+    folders = Folders.from_settings(settings, lumi.cluster)
+    account = settings.cluster(lumi.cluster.name)
+    gateway_user = _checked("username", account.gateway_user)
+    gateway_job = _checked("name", account.gateway_job)
+    container = _checked("container", account.container)
+    project_root = lumi.cluster.project_root.format(project=folders.project)
     output = lumi.run(
         f"""
         echo "@user $(whoami)"
         echo "@groups $(id -Gn)"
-        if [ -d /scratch/{folders.project} ]; then echo "@scratch yes"; fi
+        echo "@partitions $(sacctmgr -n -P show assoc user=$(whoami) account={folders.project} \\
+            format=partition 2>/dev/null | tr '\\n' ' ')"
+        if [ -d {project_root} ]; then echo "@scratch yes"; fi
         if [ -r {container} ]; then echo "@container yes"; fi
         if gateway=$(squeue -u {gateway_user} -n {gateway_job} -t RUNNING -h -o %B); then
             echo "@gateway $gateway"
@@ -206,7 +222,7 @@ def check_account(lumi: Lumi, settings: Settings) -> dict[str, str]:
     if _tagged(output, "@slurm"):
         raise LumiError("Slurm, LUMI's job system, did not answer; try again in a minute")
     facts = {}
-    for tag in ("@user", "@groups", "@scratch", "@container", "@gateway"):
+    for tag in ("@user", "@groups", "@partitions", "@scratch", "@container", "@gateway"):
         values = _tagged(output, tag)
         facts[tag[1:]] = values[0] if values else ""
     return facts
@@ -221,10 +237,11 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
     accepted on Hugging Face also needs your Hugging Face token on LUMI, in
     ~/.cache/huggingface/token (see docs/lumi.md).
     """
-    folders = Folders.from_settings(settings)
+    cluster = lumi.cluster
+    folders = Folders.from_settings(settings, cluster)
     repo = _checked("repo", repo)
     target = f"{folders.models}/{_checked('name', name)}"
-    container = _checked("container", settings.lumi.container)
+    container = _checked("container", settings.cluster(cluster.name).container)
     download = (
         "import sys; from huggingface_hub import snapshot_download; "
         "snapshot_download(repo_id=sys.argv[1], local_dir=sys.argv[2], "
@@ -235,11 +252,10 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
         umask 022
         {folders.check(folders.models, folders.cache, target)}
         if [ -f {target}/.download-complete ]; then echo "Already downloaded: {target}"; exit 0; fi
-        module purge >/dev/null 2>&1
-        module load Local-LAIF lumi-aif-singularity-bindings >/dev/null 2>&1 || exit 1
+        {cluster.login_modules}
         set -euo pipefail
         export HF_HUB_CACHE={folders.cache}/huggingface  # not in your small home folder
-        singularity run {container} python -c "{download}" {repo} {target}
+        {cluster.login_container_runtime} {container} python -c "{download}" {repo} {target}
         touch {target}/.download-complete
         echo "Downloaded {repo} to {target}"
         """,
@@ -250,10 +266,12 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
 
 def start_server(lumi: Lumi, settings: Settings, request: ServerRequest) -> str:
     """Submit a job that serves a model with vLLM; return the job's id."""
-    folders = Folders.from_settings(settings)
+    cluster = lumi.cluster
+    folders = Folders.from_settings(settings, cluster)
     if request.kind not in ("chat", "embeddings"):
         raise LumiError(f"a server is for chat or embeddings, not {request.kind!r}")
-    _check_resources(request.gpus, request.hours, request.partition)
+    partition = request.partition or cluster.partitions[0]
+    _check_resources(cluster, request.gpus, request.hours, partition)
     if not 512 <= request.context <= 131072:
         raise LumiError(f"give a context of 512 to 131072 tokens, not {request.context}")
     model_path = _model_path(folders, request.model)
@@ -275,14 +293,15 @@ def start_server(lumi: Lumi, settings: Settings, request: ServerRequest) -> str:
         checks.append(_must_exist(f"{adapter}/adapter_config.json", adapter))
     script = render_template(
         "serve.sbatch",
+        cluster,
         job_name=f"gagnvist-{request.kind}",
         kind=request.kind,
         project=folders.project,
-        partition=request.partition,
+        partition=partition,
         gpus=str(request.gpus),
-        cpus=str(CPUS_PER_GPU * request.gpus),
+        cpus=str(cluster.cpus_per_gpu * request.gpus),
         hours=str(request.hours),
-        container=_checked("container", settings.lumi.container),
+        container=_checked("container", settings.cluster(cluster.name).container),
         model_path=model_path,
         served_name=served_name,
         request_name=request_name,
@@ -294,8 +313,10 @@ def start_server(lumi: Lumi, settings: Settings, request: ServerRequest) -> str:
 
 def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> str:
     """Upload the training data and submit a LoRA fine-tuning job; return the job's id."""
-    folders = Folders.from_settings(settings)
-    _check_resources(1, request.hours, request.partition)
+    cluster = lumi.cluster
+    folders = Folders.from_settings(settings, cluster)
+    partition = request.partition or cluster.partitions[0]
+    _check_resources(cluster, 1, request.hours, partition)
     if not 1 <= request.epochs <= 20:
         raise LumiError(f"give 1 to 20 epochs, not {request.epochs}")
     if not 0 < request.learning_rate < 1:
@@ -306,11 +327,12 @@ def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> 
     run_folder = f"{folders.finetune}/{_checked('name', request.name)}"
     script = render_template(
         "finetune.sbatch",
+        cluster,
         project=folders.project,
-        partition=request.partition,
-        cpus=str(CPUS_PER_GPU),
+        partition=partition,
+        cpus=str(cluster.cpus_per_gpu),
         hours=str(request.hours),
-        container=_checked("container", settings.lumi.container),
+        container=_checked("container", settings.cluster(cluster.name).container),
         model_path=model_path,
         run_folder=run_folder,
         run_name=request.name,
@@ -433,9 +455,14 @@ def job_log(lumi: Lumi, job: str, lines: int = 40) -> str:
     return output
 
 
-def render_template(name: str, **values: str) -> str:
-    """A job script from ``job_templates/``, with every {{placeholder}} filled in."""
+def render_template(name: str, cluster: Cluster = LUMI, **values: str) -> str:
+    """A job script from ``job_templates/``, with every {{placeholder}} filled in.
+
+    The placeholders that differ between supercomputers (the modules, the container
+    runtime, the GPU request, the GPUs' environment) come from ``cluster`` unless given.
+    """
     text = _template_text(name)
+    values = {**cluster.job_pieces(int(values.get("gpus", "1"))), **values}
     for key, value in values.items():
         placeholder = "{{" + key + "}}"
         if placeholder not in text:
@@ -448,37 +475,46 @@ def render_template(name: str, **values: str) -> str:
 
 
 def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") -> str:
-    """Run ``checks``, then submit the job, unless you already have MAX_JOBS jobs.
+    """Run ``checks``, then submit the job, unless you already have as many jobs as
+    the supercomputer's profile allows.
 
-    The job script is ``script`` (a path on LUMI that ``checks`` put there), or else
+    The job script is ``script`` (a path there that ``checks`` put there), or else
     what ``stdin`` holds. The job's log goes to your home folder.
     """
     names = ",".join(JOB_NAMES)
     check_lines = "\n".join(checks)
+    max_jobs = lumi.cluster.max_jobs
     output = lumi.run(
         f"""
         set -euo pipefail
         umask 022
         jobs=$(squeue --me -h -n {names} -o %i | wc -l | tr -d ' ')
-        if [ "$jobs" -ge {MAX_JOBS} ]; then echo "@too-many $jobs"; exit 0; fi
+        if [ "$jobs" -ge {max_jobs} ]; then echo "@too-many $jobs"; exit 0; fi
         mkdir -p {LOGS} ~/.gagnvist/jobs
         chmod 700 ~/.gagnvist
         {check_lines}
-        job=$(sbatch --parsable --output="{LOGS}/%x-%j.log" {script})
+        errors=$(mktemp)
+        if ! job=$(sbatch --parsable --output="{LOGS}/%x-%j.log" {script} 2>"$errors"); then
+            echo "@refused $(head -c 600 "$errors")"; rm -f "$errors"; exit 0
+        fi
+        rm -f "$errors"
         echo "@job $job"
         """,
         stdin=stdin,
     )
+    name = lumi.cluster.name
     if found := _tagged(output, "@too-many"):
         raise LumiError(
-            f"you already have {found[0]} gagnvist jobs (the limit is {MAX_JOBS}): stop one "
-            "first (gagnvist lumi jobs, gagnvist lumi stop JOB)"
+            f"you already have {found[0]} gagnvist jobs (the limit is {max_jobs}): stop one "
+            f"first (gagnvist {name} jobs, gagnvist {name} stop JOB)"
         )
+    if found := _tagged(output, "@refused"):
+        raise LumiError(_explain_refusal(found[0], lumi))
     if found := _tagged(output, "@missing"):
-        raise LumiError(f"{found[0]} was not found on LUMI (gagnvist lumi download ...?)")
+        raise LumiError(f"{found[0]} was not found on {lumi.label} (gagnvist {name} download ...?)")
     if found := _tagged(output, "@incomplete"):
         raise LumiError(
-            f"the download of {found[0]} did not finish: run `gagnvist lumi download` again"
+            f"the download of {found[0]} did not finish: run `gagnvist {name} download` again"
         )
     if found := _tagged(output, "@exists"):
         raise LumiError(f"{found[0]} already exists: choose another name with --name")
@@ -486,6 +522,16 @@ def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") ->
     if not job_ids or not job_ids[0].isdigit():
         raise LumiError(f"sbatch did not return a job id: {output[-300:]}")
     return job_ids[0]
+
+
+def _explain_refusal(message: str, lumi: Lumi) -> str:
+    """Why Slurm would not take the job, in words a participant can act on."""
+    if "account/partition combination" in message:
+        return (
+            f"Slurm refused the job: your account cannot use that partition in the project "
+            f"yet. {lumi.cluster.partition_access_hint}".rstrip()
+        )
+    return f"Slurm refused the job: {message}"
 
 
 def _must_exist(path: str, shown: str) -> str:
@@ -504,27 +550,24 @@ def _model_must_exist(folders: Folders, model_path: str) -> str:
 
 
 def _model_path(folders: Folders, model: str) -> str:
-    """A model folder name in your models folder, or a full path on LUMI (for example a
-    teammate's model)."""
+    """A model folder name in your models folder, or a full path on the supercomputer
+    (for example a teammate's model)."""
     if model.startswith("/"):
-        return _checked("path", model.rstrip("/"))
+        return _checked("path", model.rstrip("/"), folders.cluster)
     return f"{folders.models}/{_checked('name', model)}"
 
 
-def _check_resources(gpus: int, hours: int, partition: str) -> None:
-    if partition not in PARTITIONS:
-        raise LumiError(f"use the partition {' or '.join(PARTITIONS)}, not {partition!r}")
-    if gpus not in GPU_CHOICES:
-        choices = ", ".join(str(n) for n in GPU_CHOICES)
-        raise LumiError(f"ask for {choices} GPU chips (a model is split evenly), not {gpus}")
-    longest = 3 if partition == "dev-g" else MAX_HOURS
-    if not 1 <= hours <= longest:
-        raise LumiError(f"ask for 1 to {longest} hours on {partition}, not {hours}")
+def _check_resources(cluster: Cluster, gpus: int, hours: int, partition: str) -> None:
+    problem = cluster.resource_problem(gpus, hours, partition)
+    if problem:
+        raise LumiError(problem)
 
 
-def _checked(kind: str, value: str) -> str:
-    """``value`` if it matches the pattern for ``kind``, so it is safe in a shell script."""
-    if not re.fullmatch(_PATTERNS[kind], value) or ".." in value:
+def _checked(kind: str, value: str, cluster: Cluster = LUMI) -> str:
+    """``value`` if it matches the pattern for ``kind``, so it is safe in a shell script.
+    A project name or a full path must look like the supercomputer's."""
+    patterns = {"project": cluster.project_pattern, "path": cluster.path_pattern}
+    if not re.fullmatch(patterns.get(kind) or _PATTERNS[kind], value) or ".." in value:
         raise LumiError(f"{value!r} is not a valid {kind} here")
     return value
 

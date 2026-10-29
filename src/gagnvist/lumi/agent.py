@@ -61,7 +61,7 @@ def remember_key(
     if fingerprint in held.stdout:
         return  # the agent holds it already
 
-    print("Your SSH key has a passphrase, which ssh asks for every time it connects to LUMI.")
+    print("Your SSH key has a passphrase, which ssh asks for every time it connects.")
     if time_limits:
         life = _ask_time(ask)
         if life is None:
