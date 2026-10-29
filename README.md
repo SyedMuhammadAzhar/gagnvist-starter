@@ -75,10 +75,11 @@ that you type it only once: on macOS and Linux for as long as you choose (at mos
 days), on Windows until you remove it (see [docs/lumi.md](docs/lumi.md#3-your-passphrase)).
 
 > **Your settings stay on your computer.** Your personal settings go in `.env`, which
-> git ignores, as it ignores key files: they are never committed or pushed. The shared
-> settings, the same for everyone, are in `gagnvist.toml`, which comes with the code.
-> Never put a key anywhere else in the repository. Your SSH key is yours alone, not
-> even for your teammates; your team key is for your team only.
+> git ignores, as it ignores key files: they are never committed or pushed; the name
+> and meaning of every setting are in `example.env`. The shared settings, the same for
+> everyone, are in `gagnvist.toml`, which comes with the code. Never put a key anywhere
+> else in the repository. Your SSH key is yours alone, not even for your teammates;
+> your team key is for your team only.
 
 ## How it works
 
