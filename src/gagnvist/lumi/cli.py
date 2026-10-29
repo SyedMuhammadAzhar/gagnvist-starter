@@ -1,7 +1,11 @@
-"""The ``gagnvist lumi`` commands: tunnels to the shared models, and jobs of your own.
+"""The ``gagnvist lumi`` and ``gagnvist jureca`` commands: tunnels to the shared models,
+and jobs of your own, on either supercomputer.
 
-Like the other commands, each one only reads the settings, calls the library
-(:mod:`gagnvist.lumi.jobs`, :mod:`gagnvist.lumi.tunnel`) and prints the outcome.
+Both have the same sub-commands (check, connect, download, start, finetune, jobs, log,
+stop), made by :func:`add_cluster_commands` from one supercomputer's profile (see
+:mod:`gagnvist.clusters`). Like the other commands, each one only reads the settings,
+calls the library (:mod:`gagnvist.lumi.jobs`, :mod:`gagnvist.lumi.tunnel`) and prints
+the outcome.
 """
 
 from __future__ import annotations
@@ -12,13 +16,11 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from gagnvist.clusters import JURECA, LUMI, Cluster
 from gagnvist.config import Settings, team_key_problem
 from gagnvist.lumi.agent import remember_key
 from gagnvist.lumi.connection import Lumi, LumiError
 from gagnvist.lumi.jobs import (
-    GPU_CHOICES,
-    MAX_HOURS,
-    PARTITIONS,
     FinetuneRequest,
     ServerAddress,
     ServerRequest,
@@ -37,17 +39,34 @@ from gagnvist.lumi.tunnel import hold_tunnel, try_key
 Command = Callable[[argparse.Namespace, Settings], int]
 
 # Ports on your computer for tunnels to servers of your own (the shared models use
-# [shared_services] local_port), so that a chat and an embedding server can be open at once.
-OWN_SERVER_PORTS = {"chat": 8801, "embeddings": 8802}
+# [shared_services] local_port), so that a chat and an embedding server can be open at
+# once; JURECA's are in its profile, so that both supercomputers' can be open at once.
+OWN_SERVER_PORTS = LUMI.own_server_ports
 MAX_TRAINING_FILE = 100_000_000  # bytes
 
 
 def add_lumi_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Add ``gagnvist lumi ...`` to the main command's sub-commands."""
-    lumi = commands.add_parser("lumi", help="the shared models, and your own jobs, on LUMI")
-    sub = lumi.add_subparsers(title="lumi commands", metavar="COMMAND", required=True)
+    add_cluster_commands(commands, LUMI)
 
-    check = sub.add_parser("check", help="check that you can log in to LUMI and use the project")
+
+def add_jureca_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    """Add ``gagnvist jureca ...``, the same commands for the second supercomputer."""
+    add_cluster_commands(commands, JURECA)
+
+
+def add_cluster_commands(
+    commands: argparse._SubParsersAction[argparse.ArgumentParser], cluster: Cluster
+) -> None:
+    """Add ``gagnvist <cluster> ...`` to the main command's sub-commands."""
+    name, label = cluster.name, cluster.label
+    top = commands.add_parser(name, help=f"the shared models, and your own jobs, on {label}")
+    top.set_defaults(cluster=name)  # which supercomputer every command below works on
+    sub = top.add_subparsers(title=f"{name} commands", metavar="COMMAND", required=True)
+
+    check = sub.add_parser(
+        "check", help=f"check that you can log in to {label} and use the project"
+    )
     check.set_defaults(command=_check)
 
     connect = sub.add_parser(
@@ -60,18 +79,18 @@ def add_lumi_commands(commands: argparse._SubParsersAction[argparse.ArgumentPars
     connect.set_defaults(command=_connect)
 
     download = sub.add_parser(
-        "download", help="download a model from Hugging Face into your folder on LUMI"
+        "download", help=f"download a model from Hugging Face into your folder on {label}"
     )
     download.add_argument(
         "repo", help="the model's name on Hugging Face, e.g. Qwen/Qwen2.5-7B-Instruct"
     )
-    download.add_argument("--name", help="the folder name on LUMI (default: the part after /)")
+    download.add_argument("--name", help=f"the folder name on {label} (default: the part after /)")
     download.set_defaults(command=_download)
 
     start = sub.add_parser("start", help="start a model server of your own (a Slurm job)")
     start.add_argument("kind", choices=["chat", "embeddings"], help="what the model is for")
     start.add_argument("model", help="a model you downloaded (its folder name), or a full path")
-    _add_resources(start, default_hours=4)
+    _add_resources(start, cluster, default_hours=4)
     start.add_argument(
         "--context",
         type=int,
@@ -96,10 +115,10 @@ def add_lumi_commands(commands: argparse._SubParsersAction[argparse.ArgumentPars
     finetune.add_argument(
         "--learning-rate", type=float, default=2e-4, help="how big each step is (default: 0.0002)"
     )
-    _add_resources(finetune, default_hours=2, gpus=False)
+    _add_resources(finetune, cluster, default_hours=2, gpus=False)
     finetune.set_defaults(command=_finetune)
 
-    jobs = sub.add_parser("jobs", help="list your jobs on LUMI")
+    jobs = sub.add_parser("jobs", help=f"list your jobs on {label}")
     jobs.set_defaults(command=_jobs)
 
     log = sub.add_parser("log", help="show the end of a job's log")
@@ -113,27 +132,29 @@ def add_lumi_commands(commands: argparse._SubParsersAction[argparse.ArgumentPars
 
 
 def _add_resources(
-    parser: argparse.ArgumentParser, *, default_hours: int, gpus: bool = True
+    parser: argparse.ArgumentParser, cluster: Cluster, *, default_hours: int, gpus: bool = True
 ) -> None:
     if gpus:
         parser.add_argument(
             "--gpus",
             type=int,
-            choices=GPU_CHOICES,
+            choices=cluster.gpu_choices,
             default=1,
-            help="GPU chips: a model too big for one is split evenly (default: 1)",
+            help="GPUs: a model too big for one is split evenly (default: 1)",
         )
+    most = cluster.partition_hours[cluster.partitions[0]]
+    default_hours = min(default_hours, most)
     parser.add_argument(
         "--hours",
         type=int,
         default=default_hours,
-        help=f"the job stops after this many hours, at most {MAX_HOURS} (default: {default_hours})",
+        help=f"the job stops after this many hours, at most {most} (default: {default_hours})",
     )
     parser.add_argument(
         "--partition",
-        choices=PARTITIONS,
-        default=PARTITIONS[0],
-        help="dev-g, for quick tests only, often starts sooner but allows at most 3 hours",
+        choices=cluster.partitions,
+        default=cluster.partitions[0],
+        help=cluster.partition_help,
     )
 
 
@@ -148,24 +169,46 @@ def _port(text: str) -> int:
     return port
 
 
+def _login(args: argparse.Namespace, settings: Settings) -> Lumi:
+    """Your account on the supercomputer the command is for."""
+    return Lumi.from_settings(settings, args.cluster)
+
+
 def _check(args: argparse.Namespace, settings: Settings) -> int:
-    lumi = Lumi.from_settings(settings)
+    lumi = _login(args, settings)
     remember_key(lumi.ssh_key)
     print(f"Logging in to {lumi.host} as {lumi.username} with the key {lumi.ssh_key} ...")
     facts = check_account(lumi, settings)
-    project = settings.lumi.project
+    account = settings.cluster(lumi.cluster.name)
+    project = account.project
     problems = []
     print(f"  You are logged in as {facts['user']}.")
-    if project in facts["groups"].split():
+    groups = facts["groups"].split()
+    if project in groups:
         print(f"  You are a member of the project {project}.")
     else:
         problems.append(f"your account is not (yet) a member of the project {project}")
     if not facts["scratch"]:
-        problems.append(f"the project folder /scratch/{project} cannot be seen")
+        root = lumi.cluster.project_root.format(project=project)
+        problems.append(f"the project folder {root} cannot be seen")
     if not facts["container"]:
-        problems.append(f"the container for model jobs was not found: {settings.lumi.container}")
+        problems.append(f"the container for model jobs was not found: {account.container}")
     for problem in problems:
         print(f"  PROBLEM: {problem}; please tell the organizers.")
+    needed = lumi.cluster.container_group
+    if needed and needed not in groups:
+        print(
+            f"  NOTE: your account is not in the group {needed!r} yet, so jobs of your own "
+            f"cannot run containers there; the shared models work anyway. See {lumi.cluster.docs}."
+        )
+    allowed = facts["partitions"].split()  # empty where Slurm lists no partitions (LUMI)
+    if allowed and not any(partition in allowed for partition in lumi.cluster.partitions):
+        print(
+            f"  NOTE: your account cannot use the GPU partitions of {project} "
+            f"({', '.join(lumi.cluster.partitions)}) yet, so jobs of your own cannot start; "
+            f"the shared models work anyway. {lumi.cluster.partition_access_hint} "
+            f"See {lumi.cluster.docs}."
+        )
     key = settings.shared_services.team_key
     key_problem = (
         "it is not filled in"
@@ -177,7 +220,7 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
     if facts["gateway"]:
         print(f"  The shared models are running (on {facts['gateway']}).")
         if not key_problem:
-            answer = try_key(lumi, facts["gateway"], settings.shared_services.gateway_port, key)
+            answer = try_key(lumi, facts["gateway"], account.gateway_port, key)
             if answer.startswith("Connected"):
                 print("  Your team key works.")
             elif "refused the key" in answer:
@@ -191,38 +234,49 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
         print("  The shared models are not running right now.")
     if problems or key_problem:
         return 1
-    print("All set. Next: gagnvist lumi connect")
+    print(f"All set. Next: gagnvist {lumi.cluster.name} connect")
     return 0
 
 
 def _connect(args: argparse.Namespace, settings: Settings) -> int:
-    lumi = Lumi.from_settings(settings)
+    lumi = _login(args, settings)
     remember_key(lumi.ssh_key)
+    cluster = lumi.cluster
     if args.job:
         address = server_address(lumi, args.job)
-        port = args.port or OWN_SERVER_PORTS[address.kind]
+        port = args.port or cluster.own_server_ports[address.kind]
         _explain_own_server(address, port)
 
         def find_own_server() -> tuple[str, int]:
             found = server_address(lumi, args.job)
             return found.node, found.port
 
-        hold_tunnel(lumi, port, find_own_server, address.key)
+        hold_tunnel(lumi, port, find_own_server, address.key, label=lumi.label)
     else:
         settings.require_team_key()
-        settings.require_gateway()
-        expected = settings.shared_services.local_port
+        settings.require_gateway(cluster.name)
+        account = settings.cluster(cluster.name)
+        expected = account.local_port
         port = args.port or expected
         if port != expected:
             print(
                 f"Note: the other commands look for the shared models on port {expected}; "
-                f"to use port {port}, set GAGNVIST_LOCAL_PORT={port} in .env."
+                f"to use port {port}, set {cluster.local_port_setting}={port} in .env."
+            )
+        if settings.default_cluster != cluster.name:
+            print(
+                f"Note: the other commands use the shared models on "
+                f"{settings.cluster().profile.label}; to use {cluster.label}'s, add "
+                f"GAGNVIST_CLUSTER={cluster.name} to .env, or --cluster {cluster.name} to "
+                "each command."
             )
 
         def find_shared_models() -> tuple[str, int]:
-            return find_gateway(lumi, settings), settings.shared_services.gateway_port
+            return find_gateway(lumi, settings), account.gateway_port
 
-        hold_tunnel(lumi, port, find_shared_models, settings.shared_services.team_key)
+        hold_tunnel(
+            lumi, port, find_shared_models, settings.shared_services.team_key, label=lumi.label
+        )
     return 0
 
 
@@ -241,16 +295,16 @@ def _explain_own_server(address: ServerAddress, port: int) -> None:
 
 
 def _download(args: argparse.Namespace, settings: Settings) -> int:
-    lumi = Lumi.from_settings(settings)
+    lumi = _login(args, settings)
     name = args.name or args.repo.rsplit("/", 1)[-1]
     path = download_model(lumi, settings, args.repo, name)
-    print(f"The model is in {path} on LUMI.")
-    print(f"Serve it with:  gagnvist lumi start chat {name}   (or embeddings)")
+    print(f"The model is in {path} on {lumi.label}.")
+    print(f"Serve it with:  gagnvist {lumi.cluster.name} start chat {name}   (or embeddings)")
     return 0
 
 
 def _start(args: argparse.Namespace, settings: Settings) -> int:
-    lumi = Lumi.from_settings(settings)
+    lumi = _login(args, settings)
     request = ServerRequest(
         kind=args.kind,
         model=args.model,
@@ -261,17 +315,18 @@ def _start(args: argparse.Namespace, settings: Settings) -> int:
         adapter=args.adapter or "",
     )
     job = start_server(lumi, settings, request)
+    name = lumi.cluster.name
     print(f"Submitted job {job}: a {args.kind} server for {args.model}.")
     print("It may wait for a free GPU first, and then needs a few minutes to load the model.")
-    print(f"Follow it:      gagnvist lumi jobs   (its log: gagnvist lumi log {job})")
-    print(f"When it is READY:  gagnvist lumi connect --job {job}")
-    _print_cost(args.gpus, args.hours, job)
+    print(f"Follow it:      gagnvist {name} jobs   (its log: gagnvist {name} log {job})")
+    print(f"When it is READY:  gagnvist {name} connect --job {job}")
+    _print_cost(lumi.cluster, args.gpus, args.hours, job)
     return 0
 
 
 def _finetune(args: argparse.Namespace, settings: Settings) -> int:
     count = check_training_data(args.data)
-    lumi = Lumi.from_settings(settings)
+    lumi = _login(args, settings)
     name = args.name or time.strftime("run-%Y%m%d-%H%M")
     request = FinetuneRequest(
         model=args.model,
@@ -284,10 +339,11 @@ def _finetune(args: argparse.Namespace, settings: Settings) -> int:
         partition=args.partition,
     )
     job = start_finetune(lumi, settings, request)
+    cluster = lumi.cluster.name
     print(f"Submitted job {job}: fine-tuning {args.model} on {count:,} conversations ({name}).")
-    print(f"Follow it:  gagnvist lumi log {job}")
-    print(f"When it has finished:  gagnvist lumi start chat {args.model} --adapter {name}")
-    _print_cost(1, args.hours, job)
+    print(f"Follow it:  gagnvist {cluster} log {job}")
+    print(f"When it has finished:  gagnvist {cluster} start chat {args.model} --adapter {name}")
+    _print_cost(lumi.cluster, 1, args.hours, job)
     return 0
 
 
@@ -335,30 +391,33 @@ def _conversation_problem(line: str) -> str:
 
 
 def _jobs(args: argparse.Namespace, settings: Settings) -> int:
-    jobs = list_jobs(Lumi.from_settings(settings))
+    lumi = _login(args, settings)
+    jobs = list_jobs(lumi)
     if not jobs:
-        print("You have no jobs on LUMI.")
+        print(f"You have no jobs on {lumi.label}.")
         return 0
     print(f"{'JOB':<10} {'NAME':<22} {'STATE':<11} {'NODE':<12} TIME LEFT")
     for job in jobs:
         state = "READY" if job.ready else job.state
         print(f"{job.id:<10} {job.name[:22]:<22} {state:<11} {job.node or '-':<12} {job.time_left}")
-    print("A server is READY once it has loaded its model: gagnvist lumi connect --job JOB")
+    print(
+        "A server is READY once it has loaded its model: "
+        f"gagnvist {lumi.cluster.name} connect --job JOB"
+    )
     return 0
 
 
 def _log(args: argparse.Namespace, settings: Settings) -> int:
-    print(job_log(Lumi.from_settings(settings), args.job, args.lines), end="")
+    print(job_log(_login(args, settings), args.job, args.lines), end="")
     return 0
 
 
 def _stop(args: argparse.Namespace, settings: Settings) -> int:
-    stop_job(Lumi.from_settings(settings), args.job)
+    stop_job(_login(args, settings), args.job)
     print(f"Stopped job {args.job}.")
     return 0
 
 
-def _print_cost(gpus: int, hours: int, job: str) -> None:
-    most = 0.5 * gpus * hours
-    print(f"In its {hours} h it uses at most {most:g} GPU-hours of the hackathon's budget.")
-    print(f"Stop it as soon as you are done:  gagnvist lumi stop {job}")
+def _print_cost(cluster: Cluster, gpus: int, hours: int, job: str) -> None:
+    print(cluster.cost(gpus, hours))
+    print(f"Stop it as soon as you are done:  gagnvist {cluster.name} stop {job}")

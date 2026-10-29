@@ -23,11 +23,12 @@ from gagnvist.answering.find_tables import find_tables
 from gagnvist.answering.language import guess_language
 from gagnvist.answering.pipeline import Answer, AnswerError, Pipeline, open_vector_index
 from gagnvist.cards import make_table_cards, save_cards, search_cards
+from gagnvist.clusters import CLUSTERS
 from gagnvist.config import DEFAULT_CONFIG_FILE, ConfigError, Settings, load_settings
 from gagnvist.data.download import CheckResult, DataError, check_data, get_data
 from gagnvist.data.px_reader import PxError
 from gagnvist.evaluate import evaluate, not_right, outcome_line, read_questions, save, summary
-from gagnvist.lumi.cli import add_lumi_commands
+from gagnvist.lumi.cli import add_jureca_commands, add_lumi_commands
 from gagnvist.lumi.connection import LumiError
 from gagnvist.models.client import ModelClient, ModelError
 from gagnvist.search.table_index import TableIndex, build_index
@@ -46,6 +47,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         settings = load_settings(args.config)
+        if getattr(args, "cluster", None):  # --cluster, or a `gagnvist lumi/jureca` command
+            settings = settings.using_cluster(args.cluster)
         command: Command = args.command
         return command(args, settings)
     except (
@@ -89,6 +92,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(title="commands", metavar="COMMAND", required=True)
 
+    # For the commands that talk to the models: which supercomputer's shared models.
+    models = argparse.ArgumentParser(add_help=False)
+    models.add_argument(
+        "--cluster",
+        choices=list(CLUSTERS),
+        help="whose shared models to use (default: GAGNVIST_CLUSTER in .env, else lumi)",
+    )
+
     get = commands.add_parser("get-data", help="unpack the data and check every file")
     get.add_argument(
         "--zip", type=Path, help="use this data zip instead of the one in data-release/"
@@ -112,25 +123,31 @@ def _build_parser() -> argparse.ArgumentParser:
     cards.set_defaults(command=_build_cards)
 
     trial = commands.add_parser(
-        "try-models", help="send one small request to the chat model and the embedding model"
+        "try-models",
+        parents=[models],
+        help="send one small request to the chat model and the embedding model",
     )
     trial.set_defaults(command=_try_models)
 
     vectors = commands.add_parser(
-        "build-vectors", help="embed every table's card into a new vector index"
+        "build-vectors",
+        parents=[models],
+        help="embed every table's card into a new vector index",
     )
     vectors.add_argument(
         "--replace", action="store_true", help="replace the index already in that folder"
     )
     vectors.set_defaults(command=_build_vectors)
 
-    find = commands.add_parser("find-tables", help="list the tables closest to a question")
+    find = commands.add_parser(
+        "find-tables", parents=[models], help="list the tables closest to a question"
+    )
     find.add_argument("question")
     find.add_argument("--language", choices=["is", "en"], help="default: guessed from the question")
     find.add_argument("--limit", type=_positive, default=10, help="how many tables (default: 10)")
     find.set_defaults(command=_find_tables)
 
-    ask = commands.add_parser("ask", help="answer a question from the tables")
+    ask = commands.add_parser("ask", parents=[models], help="answer a question from the tables")
     ask.add_argument("question")
     ask.add_argument("--language", choices=["is", "en"], help="default: guessed from the question")
     ask.add_argument(
@@ -139,7 +156,9 @@ def _build_parser() -> argparse.ArgumentParser:
     ask.set_defaults(command=_ask)
 
     check = commands.add_parser(
-        "evaluate", help="answer questions with known answers, and count the right ones"
+        "evaluate",
+        parents=[models],
+        help="answer questions with known answers, and count the right ones",
     )
     check.add_argument(
         "questions",
@@ -162,6 +181,7 @@ def _build_parser() -> argparse.ArgumentParser:
     check.set_defaults(command=_evaluate)
 
     add_lumi_commands(commands)
+    add_jureca_commands(commands)
     return parser
 
 

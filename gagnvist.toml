@@ -1,6 +1,10 @@
 # Shared settings of the gagnvist starter kit: the same for everyone, set by the
 # organizers. Your personal settings (LUMI username, SSH key, team key) do not belong
 # here: copy example.env to .env and fill it in. .env is never committed.
+#
+# The shared models run on LUMI, and on JURECA as well, so that one supercomputer can
+# stand in for the other: GAGNVIST_CLUSTER in .env (or --cluster on a command) says
+# which one the commands use. See docs/lumi.md and docs/jureca.md.
 
 [lumi]
 host = "lumi.csc.fi"
@@ -14,9 +18,19 @@ gateway_user = "syemuhaz"                # who runs the shared models on LUMI
 gateway_job = "gagnvist-gateway"         # the name of that job
 gateway_port = 4000                      # the port it listens on inside LUMI
 
+[jureca]                                 # the second supercomputer (JSC, Germany)
+host = "jureca.fz-juelich.de"
+project = "training2654"                 # the hackathon's project on JURECA (JuDoor)
+# The software that model jobs run in: vLLM's own image, pulled with apptainer.
+container = "/p/project1/training2654/azhar1/gagnvist/containers/vllm-openai-v0.32.0.sif"
+local_port = 8775                        # port on your computer for the tunnel to JURECA
+gateway_user = "azhar1"                  # who runs the shared models on JURECA
+gateway_job = "gagnvist-gateway"         # the name of that job
+gateway_port = 4000                      # the port it listens on inside JURECA
+
 [models]
-chat = "qwen2.5-7b"                      # the shared language model on LUMI
-embeddings = "bge-m3"                    # the shared embedding model on LUMI
+chat = "qwen2.5-7b"                      # the shared language model (the same on both)
+embeddings = "bge-m3"                    # the shared embedding model (the same on both)
 
 [data]
 folder = "data"                          # where `gagnvist get-data` unpacks the data
