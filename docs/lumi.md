@@ -140,8 +140,9 @@ Anki add-on AnkiConnect does, for example), add `GAGNVIST_LOCAL_PORT=8790` (or a
 free port) to `.env`.
 
 The shared models only answer requests that carry your team key, and you cannot stop
-or change them: only the organizers can. They are the same for every team, so you can
-use them as much as you like without touching your team's GPU budget.
+or change them: only the organizers can. They are the same for every team, and their
+job costs the same whether you use it or not, so use them as much as you like: that
+adds nothing to the hackathon's GPU bill.
 
 ## 6. Models of your own
 
