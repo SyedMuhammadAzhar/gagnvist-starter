@@ -26,7 +26,7 @@ from gagnvist.cards import make_table_cards, save_cards, search_cards
 from gagnvist.config import DEFAULT_CONFIG_FILE, ConfigError, Settings, load_settings
 from gagnvist.data.download import CheckResult, DataError, check_data, get_data
 from gagnvist.data.px_reader import PxError
-from gagnvist.evaluate import Outcome, evaluate, read_questions, save
+from gagnvist.evaluate import evaluate, not_right, outcome_line, read_questions, save, summary
 from gagnvist.lumi.cli import add_lumi_commands
 from gagnvist.lumi.connection import LumiError
 from gagnvist.models.client import ModelClient, ModelError
@@ -147,6 +147,17 @@ def _build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="a .jsonl file of questions (default: questions/examples.jsonl)",
     )
+    check.add_argument(
+        "--language",
+        choices=["is", "en"],
+        help="only the questions in this language (default: both)",
+    )
+    check.add_argument(
+        "--level",
+        choices=["easy", "medium", "hard"],
+        action="append",
+        help="only the questions of this level; repeat it for several (default: all)",
+    )
     check.add_argument("--only", help="only the questions whose id contains this text")
     check.set_defaults(command=_evaluate)
 
@@ -183,8 +194,8 @@ def _build_cards(args: argparse.Namespace, settings: Settings) -> int:
     folder = settings.search.cards
     if (folder / "cards-is.jsonl").is_file() and not args.replace:
         raise ConfigError(
-            f"{folder} already holds cards. Set [search] cards in gagnvist.toml to a new "
-            "folder (for example local/cards-mine), or add --replace to overwrite them"
+            f"{folder} already holds cards. Add GAGNVIST_SEARCH_CARDS=local/cards-mine (or "
+            "another new folder) to .env, or add --replace to overwrite them"
         )
     cards = make_table_cards(settings.data.folder)
     save_cards(cards, folder)
@@ -219,8 +230,8 @@ def _build_vectors(args: argparse.Namespace, settings: Settings) -> int:
     folder = settings.search.index
     if (folder / "manifest.json").is_file() and not args.replace:
         raise ConfigError(
-            f"{folder} already holds a vector index. Set [search] index in gagnvist.toml "
-            "to a new folder (for example local/index-mymodel), or add --replace to "
+            f"{folder} already holds a vector index. Add GAGNVIST_SEARCH_INDEX="
+            "local/index-mine (or another new folder) to .env, or add --replace to "
             "overwrite it"
         )
     cards = search_cards(settings.search.cards)
@@ -278,40 +289,36 @@ def _evaluate(args: argparse.Namespace, settings: Settings) -> int:
     if not path.is_file():
         raise FileNotFoundError(f"{path} not found")
     try:
-        questions = [q for q in read_questions(path) if not args.only or args.only in q.id]
+        questions = [
+            q
+            for q in read_questions(path)
+            if (not args.only or args.only in q.id)
+            and (not args.language or q.language == args.language)
+            and (not args.level or q.level in args.level)
+        ]
     except ValueError as e:
         raise ConfigError(str(e)) from None
-    print(f"Answering {len(questions)} questions from {path} ...")
-    with Pipeline.from_settings(settings) as pipeline:
-        outcomes = evaluate(pipeline, questions, _print_outcome)
-    if not outcomes:
+    if not questions:
+        print(f"No questions in {path} match the options given.")
         return 0
-    correct = sum(o.correct for o in outcomes)
-    right_table = sum(o.right_table for o in outcomes)
+    plural = "s" if len(questions) != 1 else ""
+    print(f"Answering {len(questions)} question{plural} from {path} ...")
+    with Pipeline.from_settings(settings) as pipeline:
+        outcomes = evaluate(pipeline, questions, lambda outcome: print(outcome_line(outcome)))
     print()
-    print(f"Correct answers: {correct} of {len(outcomes)} ({correct / len(outcomes):.0%})")
-    print(f"Right table:     {right_table} of {len(outcomes)} ({right_table / len(outcomes):.0%})")
-    for level in sorted({o.question.level for o in outcomes}):
-        group = [o for o in outcomes if o.question.level == level]
-        print(f"  {level}: {sum(o.correct for o in group)} of {len(group)} correct")
+    for line in summary(outcomes):
+        print(line)
+    wrong = not_right(outcomes)
+    if wrong:
+        print()
+        print("Not right:")
+        for line in wrong:
+            print(line)
     saved = settings.local_folder / "evaluations" / time.strftime("%Y-%m-%d-%H%M%S.json")
     save(outcomes, saved)
+    print()
     print(f"Every answer is saved in {saved}")
     return 0
-
-
-def _print_outcome(outcome: Outcome) -> None:
-    question = outcome.question
-    expected = f"{question.answer:,.10g}"
-    if outcome.answer is None:
-        print(f"  error  {question.id:<30} {outcome.error[:120]}")
-        return
-    mark = "right" if outcome.correct else "WRONG"
-    table = outcome.answer.table.table_code
-    if not outcome.right_table:
-        table += f" (expected {question.table})"
-    seconds = f"{outcome.seconds:5.1f} s"
-    print(f"  {mark:<6} {question.id:<30} {table:<24} expected {expected:<14} {seconds}")
 
 
 def _print_steps(answer: Answer) -> None:

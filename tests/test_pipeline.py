@@ -1,5 +1,6 @@
 """Answering questions end to end, with the stand-in models and the miniature data."""
 
+import unicodedata
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -78,6 +79,16 @@ def test_the_icelandic_question_gets_the_same_number_from_the_icelandic_table(
     assert icelandic.table.folder == ELECTIONS_IS
     assert icelandic.facts[0].text.startswith("GIld atkvæði: Fjöldi; Frambjóðendur: Vigdís")
     assert [f.cell for f in icelandic.facts] == [f.cell for f in english.facts]
+
+
+def test_a_question_with_decomposed_letters_is_read_like_any_other(pipeline: Pipeline) -> None:
+    # Text pasted on a Mac can write í as i followed by a combining accent.
+    question = (
+        "Úrslit forsetakjörs 1980: hve mörg gild atkvæði fékk Vigdís Finnbogadóttir í Reykjavík?"
+    )
+    answer = pipeline.answer(unicodedata.normalize("NFD", question))
+    assert answer.question == question and answer.language == "is"
+    assert answer.table.folder == ELECTIONS_IS
 
 
 def test_dimensions_the_question_leaves_out_get_their_defaults(pipeline: Pipeline) -> None:

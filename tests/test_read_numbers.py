@@ -38,7 +38,7 @@ def test_combinations_follow_the_selection(data_folder: Path) -> None:
         (Cell(124.8811, None), "124.8811"),
         (Cell(-3.0, None), "-3"),
         (Cell(0.0, "-"), "0"),
-        (Cell(None, ".."), 'no number published ("..": not available or confidential)'),
+        (Cell(None, ".."), 'no number published ("..": not available)'),
     ],
 )
 def test_format_cell(cell: Cell, text: str) -> None:

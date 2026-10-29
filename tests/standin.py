@@ -10,7 +10,7 @@ It answers the same API as the real servers, but no model is involved:
 
 In tests it is used through ``httpx.MockTransport(handle)``. To run it as a server:
 
-    python tests/standin.py --port 8765
+    python tests/standin.py --port 8766
 """
 
 from __future__ import annotations

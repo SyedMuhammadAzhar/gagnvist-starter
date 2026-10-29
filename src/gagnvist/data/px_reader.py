@@ -13,8 +13,9 @@ computed from the categories' positions, like finding a cell in a spreadsheet.
 
 Two things to know about Statistics Iceland's px files:
 
-- each file declares its own text encoding in ``CODEPAGE`` (UTF-8, ISO-8859-15 or
-  Windows-1252), and many begin with a UTF-8 byte-order mark;
+- each file declares its own text encoding in ``CODEPAGE``: UTF-8 (those begin with a
+  byte-order mark), ISO-8859-15, Windows-1252, or for a few English tables GB18030
+  (their text is plain ASCII, so it reads the same);
 - a missing number is written as a marker in quotes, such as ``".."`` (see MARKERS).
 """
 
@@ -29,10 +30,10 @@ from pathlib import Path
 from gagnvist.data.catalogue import Dimension, TableMetadata
 
 MARKERS = {
-    "-": "exactly zero",
-    "..": "not available or confidential",
+    "-": "zero",
+    "..": "not available",
     ".": "not applicable",
-    "...": "provisional",
+    "...": "no number given",  # the files do not say why; mostly early years
 }
 
 _CODEPAGES = {"windows-1252": "cp1252", "ansi": "cp1252"}

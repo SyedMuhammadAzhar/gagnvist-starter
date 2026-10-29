@@ -8,7 +8,7 @@ layout, plus a matching `catalogue.csv` and `SHA256SUMS.txt`.
 |---|---:|---|
 | SAM91452 | 9 | one bilingual px file served to both languages; encoding ISO-8859-15 |
 | KOS02105 | 12 | encoding Windows-1252; the "not applicable" marker `.` |
-| HEI11505 | 104 | the markers `-` (exactly zero), `.` and `..` (not available) |
+| HEI11505 | 104 | the markers `-` (zero), `.` and `..` (not available) |
 | KOS07112 | 360 | dimensions in a different order in each language |
 | VIS13401 | 8 | the px file starts with a UTF-8 byte-order mark |
 | HEI02601 | 28 | metadata.json has no title (the API leaves it out for some tables) |

@@ -12,6 +12,7 @@ Each step is a small module; improve one at a time and measure the effect with
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -43,6 +44,14 @@ class Answer:
     notes: list[str]  # what was corrected along the way
     unsupported: list[str]  # numbers in the answer that are not in the facts
     years_not_covered: list[str]  # years the question names that the table lacks
+    # More tables, for an answer built from several (the starter kit uses one): evaluate
+    # counts every table in `tables` when it checks where the numbers came from.
+    extra_tables: tuple[CatalogueEntry, ...] = ()
+
+    @property
+    def tables(self) -> tuple[CatalogueEntry, ...]:
+        """Every table the answer used, the main one first."""
+        return (self.table, *self.extra_tables)
 
     @property
     def source(self) -> str:
@@ -90,6 +99,8 @@ class Pipeline:
 
     def answer(self, question: str, language: str | None = None) -> Answer:
         """Answer ``question``; its language is guessed unless given ("is" or "en")."""
+        # one form for every letter: text pasted on a Mac can write í as i + accent
+        question = unicodedata.normalize("NFC", question)
         language = language or guess_language(question)
         candidates = find_tables(question, language, self.vectors, self.client)
         if not candidates:
@@ -131,14 +142,14 @@ def open_vector_index(settings: Settings) -> VectorIndex:
     if not (folder / "manifest.json").is_file():
         raise ConfigError(
             f"no vector index in {folder}: it ships with the repository, or can be made "
-            "with `gagnvist build-vectors` (see [search] index in gagnvist.toml)"
+            "with `gagnvist build-vectors` (see GAGNVIST_SEARCH_INDEX in .env)"
         )
     index = VectorIndex.load(folder)
     if index.model != settings.models.embeddings:
         raise ConfigError(
             f"the vector index in {folder} was made with the embedding model "
-            f"{index.model!r}, but the settings use {settings.models.embeddings!r}: set "
-            "[search] index in gagnvist.toml to a new folder and run `gagnvist "
-            "build-vectors` to fill it"
+            f"{index.model!r}, but the settings use {settings.models.embeddings!r}: add "
+            "GAGNVIST_SEARCH_INDEX=local/index-mine (or another new folder) to .env, and "
+            "run `gagnvist build-vectors` to fill it"
         )
     return index
