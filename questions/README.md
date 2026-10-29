@@ -4,14 +4,14 @@
 you which answers are right, which are not, and why. Evaluate after every change: that
 tells you whether it helped.
 
-There are 26 questions, each asked in English and in Icelandic (52 in all), at three
-levels:
+There are 30 questions, each asked in English and in Icelandic (60 in all), ten at each
+of three levels:
 
 | Level | What the question needs | Per language | Example |
 |---|---|---|---|
-| `easy` | one number from one table | 14 | How many people lived in Reykjavík on 1 January 2026? |
-| `medium` | a calculation with several numbers from the same table | 6 | By how many people did the population of Reykjavík grow from 1 January 2025 to 1 January 2026? |
-| `hard` | numbers from two different tables | 6 | How many people lived in Iceland on 1 January 2026, and what was the consumer price index in September 2026? |
+| `easy` | one number from one table | 10 | How many people lived in Reykjavík on 1 January 2026? |
+| `medium` | a calculation with several numbers from the same table | 10 | By how many people did the population of Reykjavík grow from 1 January 2025 to 1 January 2026? |
+| `hard` | numbers from two different tables | 10 | How many people lived in Iceland on 1 January 2026, and what was the consumer price index in September 2026? |
 
 Even an easy question can be hard to find. Many tables look as if they answer "How many
 people lived in Reykjavík on 1 January 2026?", but some give another number: the average
@@ -21,7 +21,7 @@ Reykjavík, or in Greater Reykjavík.
 ## Running it
 
 ```bash
-gagnvist evaluate                          # all 52 questions
+gagnvist evaluate                          # all 60 questions
 gagnvist evaluate --language is            # only the Icelandic ones (or --language en)
 gagnvist evaluate --level easy             # one level; repeat it: --level medium --level hard
 gagnvist evaluate --only reykjavik         # only the questions whose id contains this text
@@ -37,10 +37,10 @@ like this (n stands for your numbers):
 
 ```text
 Right answers  English       Icelandic     Together
-  easy         n of 14       n of 14       n of 28
-  medium       n of 6        n of 6        n of 12
-  hard         n of 6        n of 6        n of 12
-  all          n of 26       n of 26       n of 52
+  easy         n of 10       n of 10       n of 20
+  medium       n of 10       n of 10       n of 20
+  hard         n of 10       n of 10       n of 20
+  all          n of 30       n of 30       n of 60
 
 Not right:
   population-and-cpi-2026-en  (hard)  How many people lived in Iceland on 1 January 2026, and ...
@@ -60,8 +60,7 @@ the right tables.
   in English or Icelandic style or with spaces (139,804, 139.804 or 139 804), rounded to
   no fewer digits than it shows: 35.5% and 35% are right ways to write 35.454%, but
   35.46% is not, and "about 140,000" is not 139,804. Some questions also accept another
-  unit: cod in tonnes as well as kilograms, GDP in billions or trillions as well as
-  millions of krónur.
+  unit: GDP in billions or trillions as well as millions of krónur.
 - **The right tables**: every expected number comes from a table cell, and `accepted`
   lists every table that holds exactly that number in the same sense. For "How many
   people lived in Reykjavík on 1 January 2026?" these are the population table by
@@ -119,7 +118,7 @@ question) is read too, as easy questions.
 
 Every expected number was read from the data release in four ways, and all four had to
 agree: with the starter kit's own reader in the English table and in the Icelandic table,
-with a separately written reader, and from Statistics Iceland's live API (on 28 October
+with a separately written reader, and from Statistics Iceland's live API (on 29 October
 2026). Every calculated answer was computed again from those reads. The accepted tables
 were found by searching the data in both languages for cells with the same number,
 compared as numbers (394324 and 394324.00 are the same): in every table for numbers with
