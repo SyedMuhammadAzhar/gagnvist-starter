@@ -204,9 +204,21 @@ GAGNVIST_CHAT_KEY=...
 The key is a new one, made for this job alone. To go back to the shared chat model,
 remove the three lines again.
 
-Embedding models work the same way: `gagnvist lumi start embeddings bge-m3`, and then
-`GAGNVIST_EMBEDDINGS_MODEL`, `GAGNVIST_EMBEDDINGS_URL` and `GAGNVIST_EMBEDDINGS_KEY` in
-`.env`. A new embedding model needs a new vector index (`gagnvist build-vectors`, see
+Keep `gagnvist lumi connect` open in its own terminal as well: `ask` still uses the
+shared embedding model (and, with an embedding server of your own, the shared chat
+model). That is three terminals: the shared tunnel, your server's tunnel, and your
+work. If port 8801 is taken on your computer, `connect --job 1234567 --port 8803`
+uses another.
+
+Embedding models work the same way, downloaded first and served on port 8802:
+
+```bash
+gagnvist lumi download intfloat/multilingual-e5-large
+gagnvist lumi start embeddings multilingual-e5-large
+gagnvist lumi connect --job 1234568      # prints GAGNVIST_EMBEDDINGS_MODEL, _URL, _KEY
+```
+
+A new embedding model needs a new vector index (`gagnvist build-vectors`, see
 [re-embedding.md](re-embedding.md)), since vectors from two models cannot be compared.
 
 **Stop it** as soon as you are done, since a running server costs the same whether
