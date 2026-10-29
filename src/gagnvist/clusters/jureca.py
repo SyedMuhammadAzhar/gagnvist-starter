@@ -9,7 +9,7 @@ Accounts and SSH keys come from JuDoor; a key is only accepted from the networks
 ``from=`` clause names. The compute nodes have no internet, so models are downloaded
 on a login node, as on LUMI.
 
-A project's GPU time is a budget of its own in JuDoor (JURECA-DC GPU, next to the CPU
+A project's GPU time is a budget of its own in JuDoor (JURECA-DC_GPU, next to the CPU
 one), and a member can use it only if the project manager gave it to them: without
 it, Slurm refuses every job on dc-gpu and dc-gpu-devel ("Invalid account or
 account/partition combination specified"). Participants who only use the shared models
@@ -19,8 +19,10 @@ Checked live on JURECA on 2026-10-29: the project folders (``/p/project1/<projec
 and ``/p/scratch/<project>``), the partitions' limits (dc-gpu 24 h; dc-gpu-devel 2 h,
 2 jobs, 4 submitted, per user), whole nodes (OverSubscribe=EXCLUSIVE, 128 billing
 units per node-hour), everyone's jobs visible in squeue, apptainer refusing an account
-outside the ``container`` group, and the GPU budget above. Still unverified: the vLLM
-image on the A100 driver, and the login node reaching a job's port.
+outside the ``container`` group, the GPU budget above, the nodes' names (``jrc0406``;
+``hostname`` on a node says ``jrc0406.jureca``, and the login node resolves both), and
+tunnels through the shared ssh connection (see ``lumi/connection.py``). Still
+unverified: the vLLM image on the A100 driver, and the login node reaching a job's port.
 """
 
 from __future__ import annotations
@@ -50,7 +52,7 @@ JURECA = Cluster(
     container_group="container",
     partition_access_hint=(
         "On JURECA the project manager has to give your membership the project's GPU "
-        "budget (JURECA-DC GPU) in JuDoor; ask the organizers."
+        "budget (JURECA-DC_GPU) in JuDoor; ask the organizers."
     ),
     multiplex=True,  # JURECA may ask for a one-time code at every login
     key_hint=(
@@ -60,8 +62,10 @@ JURECA = Cluster(
     host_key_hint="JURECA's host key (its fingerprints are on JuDoor's SSH keys page)",
     modules="module purge",
     login_modules="module purge >/dev/null 2>&1",
-    container_runtime="apptainer exec --nv",
-    login_container_runtime="apptainer exec",
+    # --bind: the models and adapters are under /p/project1, which apptainer does not
+    # mount by itself (it mounts your home folder, /tmp and the current folder).
+    container_runtime="apptainer exec --nv --bind /p/project1,/p/scratch",
+    login_container_runtime="apptainer exec --bind /p/project1,/p/scratch",
     gpu_environment="",
     gpu_request="#SBATCH --gres=gpu:{gpus}",
     cost_per_gpu_hour=0,
