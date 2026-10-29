@@ -109,11 +109,12 @@ flowchart LR
 
 The models run on [LUMI](https://www.lumi-supercomputer.eu/), the supercomputer in
 Kajaani, Finland. The organizers run a shared chat model and a shared embedding model
-for everyone; you can also run models of your own there. The same two models also run
-on [JURECA](https://apps.fz-juelich.de/jsc/hps/jureca/) in Jülich, Germany, so that one
-supercomputer can stand in for the other: the same commands, with `jureca` in place of
-`lumi`, and `--cluster jureca` (or `GAGNVIST_CLUSTER=jureca` in `.env`) to send your
-questions there (see [docs/jureca.md](docs/jureca.md)). The tables themselves are on
+for everyone; you can also run models of your own there. When the organizers say so,
+the same two models also run on [JURECA](https://apps.fz-juelich.de/jsc/hps/jureca/) in
+Jülich, Germany, so that one supercomputer can stand in for the other: the same
+commands, with `jureca` in place of `lumi`, and `--cluster jureca` (or
+`GAGNVIST_CLUSTER=jureca` in `.env`) to send your questions there (see
+[docs/jureca.md](docs/jureca.md)). The tables themselves are on
 your computer. [docs/how-it-works.md](docs/how-it-works.md) explains every step in
 detail.
 

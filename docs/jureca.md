@@ -1,8 +1,8 @@
 # Using JURECA
 
-The hackathon's models run on LUMI, and the same two models also run on
-[JURECA](https://apps.fz-juelich.de/jsc/hps/jureca/), the supercomputer of the Jülich
-Supercomputing Centre in Germany, so that one can stand in for the other. Everything
+The hackathon's models run on LUMI. When the organizers say so, the same two models
+also run on [JURECA](https://apps.fz-juelich.de/jsc/hps/jureca/), the supercomputer of
+the Jülich Supercomputing Centre in Germany, so that one can stand in for the other. Everything
 you can do on LUMI you can do on JURECA, with the same commands: `gagnvist jureca
 check`, `gagnvist jureca connect`, `gagnvist jureca start ...`, and so on. This guide
 covers what is different; [docs/lumi.md](lumi.md) explains the rest.
@@ -23,36 +23,37 @@ leaves your computer.
 
 Accounts are managed in [JuDoor](https://judoor.fz-juelich.de/), JSC's portal:
 
-1. **Register** in JuDoor with your university e-mail address.
+1. **Register** in JuDoor.
 2. **Join the hackathon's project.** The organizers tell you its name (it is
    `[jureca] project` in `gagnvist.toml`); in JuDoor, ask to join it, and the
    project's manager approves you.
-3. **Add your SSH key** on the project's JURECA page in JuDoor (*SSH keys on JURECA*).
-   JURECA only accepts a key from the networks its `from=` clause names, so paste the
-   key with that clause in front of it:
+3. **Add your SSH key** for JURECA in JuDoor (the key upload form for JURECA, on the
+   project's page). JURECA only accepts a key from the networks its `from=` clause
+   names, so paste the key with that clause in front of it:
 
    ```text
    from="130.208.0.0/16" ssh-ed25519 AAAAC3Nz... you@laptop
    ```
 
-   The page shows your current address, which the clause must cover: at the
-   hackathon, that is the University of Iceland's network, `130.208.0.0/16`; to work
-   from home as well, add your home network's range too, separated by a comma.
-   **From any other network the key is simply refused** (`Permission denied
-   (publickey)`), so list every network you will actually use. JuDoor does not accept
-   RSA keys (`id_rsa`); make an ed25519 key if you have none (`ssh-keygen -t ed25519
-   -f ~/.ssh/id_ed25519_jureca`, with a passphrase). A new key works after about 15
-   minutes.
+   The clause must cover the address you connect from: the range the organizers
+   announce for the venue (at the University of Iceland that is `130.208.0.0/16`,
+   RHnet, the Icelandic university network) and, to work from home as well, your home
+   network's range, separated by a comma. Find your address by asking a search engine
+   "what is my IP". **From any other network the key is simply refused** (`Permission
+   denied (publickey)`), so list every network you will actually use. Make an ed25519
+   key if you have none (`ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_jureca`, with a
+   passphrase). A new key works after about 15 minutes.
 4. **Only for models of your own** (section 5), two more things, which the shared
    models do not need:
    - **Container access.** In JuDoor: *Software* → *Request access to restricted
      software* → *Access to other restricted software* → *Container Runtime Engine* →
      *Get Access*, and accept the Service Level Description. This puts your account in
-     the `container` group; JSC says it can take some hours to come through.
+     the `container` group, which `gagnvist jureca download` and your own jobs need;
+     JSC says it can take some hours to come through.
    - **The project's GPU budget.** A JuDoor project has separate budgets for CPU and
-     GPU time (JURECA-DC CPU and JURECA-DC GPU), and the project manager chooses which
-     of them each member may use. Without the GPU budget, Slurm refuses every GPU job
-     (`Invalid account or account/partition combination specified`): ask the
+     GPU time (`JURECA-DC_CPU` and `JURECA-DC_GPU`), and the project manager chooses
+     which of them each member may use. Without the GPU budget, Slurm refuses every
+     GPU job (`Invalid account or account/partition combination specified`): ask the
      organizers to have it added to your membership.
 
 ## 2. Your settings
@@ -60,7 +61,7 @@ Accounts are managed in [JuDoor](https://judoor.fz-juelich.de/), JSC's portal:
 Add to `.env`, next to the LUMI lines:
 
 ```bash
-GAGNVIST_JURECA_USERNAME=your_judoor_username
+GAGNVIST_JURECA_USERNAME=your_jureca_username
 GAGNVIST_JURECA_SSH_KEY=~/.ssh/id_ed25519_jureca
 ```
 
@@ -79,11 +80,12 @@ switching is one word.
 ## 3. Log in once by hand
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_jureca your_judoor_username@jureca.fz-juelich.de
+ssh -i ~/.ssh/id_ed25519_jureca your_jureca_username@jureca.fz-juelich.de
 ```
 
 The first time, ssh shows JURECA's host key fingerprint and asks whether to trust it.
-Check that it matches the one on JuDoor's *SSH keys on JURECA* page, which lists:
+Check that it matches the fingerprint JuDoor shows next to the key upload form for
+JURECA; at the time of writing:
 
 | Key type | Fingerprint |
 |---|---|
@@ -106,13 +108,9 @@ gagnvist jureca check                    # logged in? in the project? team key a
 gagnvist jureca connect                  # the tunnel; leave this window open
 ```
 
-```text
-Opening a tunnel: 127.0.0.1:8775 -> jrc0123:4000 on JURECA
-Connected: http://127.0.0.1:8775/v1 serves qwen2.5-7b, bge-m3.
-The tunnel stays open until you press Ctrl+C.
-```
-
-Then, in a second window, with `GAGNVIST_CLUSTER=jureca` in `.env` or `--cluster
+`connect` prints the same lines as on LUMI (`Opening a tunnel: 127.0.0.1:8775 -> ...
+on JURECA`, then `Connected: http://127.0.0.1:8775/v1 serves qwen2.5-7b, bge-m3.`)
+and stays open until you press Ctrl+C. Then, in a second window, with `GAGNVIST_CLUSTER=jureca` in `.env` or `--cluster
 jureca` on each command: `gagnvist try-models`, `gagnvist ask "..."`,
 `gagnvist evaluate`. The models are the same as on LUMI, under the same names, so the
 vector index that comes with the starter kit works with both. The shared models need
@@ -142,11 +140,13 @@ What is different:
   starts sooner and is meant for short tests (JURECA itself allows 2 running jobs
   there).
 - **Downloads happen on a login node**, as on LUMI, because the compute nodes have no
-  internet. Your models go to your folder in the project; `gagnvist jureca download`
-  prints the path.
-- **Running containers needs the *Container Runtime Engine* access, and a GPU job
-  needs the project's GPU budget** (section 1, step 4). `gagnvist jureca check` tells
-  you if your account lacks either, and `gagnvist jureca start` says so too.
+  internet. Your models go to `/p/project1/<project>/<username>/gagnvist/models/`;
+  `gagnvist jureca download` prints the path.
+- **Downloading and running containers needs the *Container Runtime Engine* access,
+  and a GPU job needs the project's GPU budget** (section 1, step 4). `gagnvist jureca
+  check` tells you if your account lacks either. Without the GPU budget, `start` is
+  refused by Slurm and says so; without container access, `download` fails and a job
+  stops at once (`gagnvist jureca log JOB` shows apptainer's refusal).
 - Fine-tuning (`gagnvist jureca finetune`) works the same way; the adapter is served
   with `gagnvist jureca start chat <model> --adapter <run>`.
 
@@ -174,13 +174,13 @@ your computer, so that they can be open next to LUMI's (8801, 8802).
 
 | Message | What to do |
 |---------|------------|
-| `JURECA did not accept the SSH key` / `Permission denied (publickey)` | Check `GAGNVIST_JURECA_USERNAME` and `GAGNVIST_JURECA_SSH_KEY` in `.env`. Is your current network in the key's `from=` clause? JuDoor shows your address. A key added in the last 15 minutes may not work yet. |
+| `JURECA did not accept the SSH key` / `Permission denied (publickey)` | Check `GAGNVIST_JURECA_USERNAME` and `GAGNVIST_JURECA_SSH_KEY` in `.env`. Is your current network in the key's `from=` clause ("what is my IP")? A key added in the last 15 minutes may not work yet. |
 | `JURECA accepted your key, then asked for a one-time code` / `Permission denied (keyboard-interactive)` | Your account has multi-factor authentication: log in once by hand (section 3), or run `gagnvist jureca check` in a terminal, and type the code from your authenticator app. |
 | `your account is not (yet) a member of the project` | Ask to join the project in JuDoor, and wait for the manager's approval; ask the organizers if it does not come. |
-| `NOTE: your account is not in the group 'container' yet` | Request the *Container Runtime Engine* in JuDoor (section 1, step 4); the shared models work meanwhile. |
+| `NOTE: your account is not in the group 'container' yet` / `not authorized to use apptainer` | Request the *Container Runtime Engine* in JuDoor (section 1, step 4); `download` and your own jobs need it; the shared models work meanwhile. |
 | `NOTE: your account cannot use the GPU partitions of ... yet` / `Slurm refused the job: your account cannot use that partition` | Your membership lacks the project's GPU budget (section 1, step 4): ask the organizers; the shared models work meanwhile. |
 | `could not verify the identity of jureca.fz-juelich.de` | Log in once by hand (section 3). |
-| `port 8775 on this computer is already in use` | Add `GAGNVIST_JURECA_LOCAL_PORT=8790` (or another free port) to `.env`. |
+| `port 8775 on this computer is already in use` | Add `GAGNVIST_JURECA_LOCAL_PORT=8791` (or another free port) to `.env`. |
 | `the shared models are not running right now` | Tell the organizers; meanwhile use LUMI's (`gagnvist lumi connect`, and `--cluster lumi` or `GAGNVIST_CLUSTER=lumi`). |
 | `job ... is still waiting for a GPU` | JURECA is busy; `--partition dc-gpu-devel --hours 2` (or fewer) often starts sooner, for a test. |
 
