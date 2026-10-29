@@ -44,6 +44,12 @@ def hold_tunnel(
     stops answering, since a restarted server may run on another node. ``label`` is the
     supercomputer's name, for the messages.
     """
+    found: tuple[str, int] | None = None
+    if lumi.reuses_connection():
+        # A tunnel that was killed leaves its port forwarding in the shared connection,
+        # which would hold the port: take it out before looking at the port.
+        found = find_server()
+        lumi.close_tunnel(local_port, *found)
     problem = port_problem(local_port)
     if problem:
         raise LumiError(problem)
@@ -53,8 +59,8 @@ def hold_tunnel(
         try:
             while True:
                 try:
-                    node, remote_port = moved_to or find_server()
-                    moved_to = None
+                    node, remote_port = moved_to or found or find_server()
+                    moved_to = found = None
                 except LumiError as error:
                     if not connected_once:
                         raise
@@ -75,6 +81,7 @@ def hold_tunnel(
                         status = process.wait()
                 finally:
                     _stop(process)
+                    lumi.close_tunnel(local_port, node, remote_port)
 
                 if not connected_once:
                     raise LumiError(
@@ -139,6 +146,7 @@ def try_key(lumi: Lumi, node: str, remote_port: int, key: str, wait: float = 60)
         return f"the tunnel to {node} did not open within {wait:.0f} s"
     finally:
         _stop(process)
+        lumi.close_tunnel(port, node, remote_port)
 
 
 def server_answers(port: int, key: str, timeout: float = 20) -> bool:

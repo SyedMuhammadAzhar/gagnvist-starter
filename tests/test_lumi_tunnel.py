@@ -52,6 +52,13 @@ class LocalTunnel:
         self.drops = drops
         self.silent = silent  # the first tunnel stays open, but its server stops answering
         self.processes: list[subprocess.Popen[bytes]] = []
+        self.closed: list[tuple[int, str, int]] = []
+
+    def reuses_connection(self) -> bool:
+        return False  # as on LUMI: every tunnel is a connection of its own
+
+    def close_tunnel(self, local_port: int, node: str, remote_port: int) -> None:
+        self.closed.append((local_port, node, remote_port))
 
     def open_tunnel(self, local_port: int, node: str, remote_port: int) -> subprocess.Popen[bytes]:
         if not self.opens:

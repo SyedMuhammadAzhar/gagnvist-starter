@@ -95,33 +95,69 @@ class Lumi:
 
     def open_tunnel(self, local_port: int, node: str, remote_port: int) -> subprocess.Popen[bytes]:
         """Start a tunnel: connections to ``local_port`` on this computer (and only from
-        this computer) are carried through ssh to ``remote_port`` on the node."""
+        this computer) are carried through ssh to ``remote_port`` on the node.
+
+        Where the connection is reused, the tunnel goes through the open connection
+        (ControlMaster=no: it must never become the connection that is kept, which
+        would go to the background at once). There ``-N`` only hands the port forwarding
+        to the open connection and ends at once, so the tunnel runs a command that never
+        ends on the login node instead, and lives as long as this ssh does; the command
+        gets a terminal (-tt), which the login node hangs up when this ssh ends, so the
+        command ends with it. The open connection keeps the tunnel's port forwarding
+        after this ssh ends, so :meth:`close_tunnel` takes it out again. (All checked
+        on JURECA with OpenSSH 9.9.)
+        """
         forward = f"127.0.0.1:{local_port}:{node}:{remote_port}"
-        command = self._ssh("-N", "-o", "ExitOnForwardFailure=yes", "-L", forward)
+        options = ["-o", "ExitOnForwardFailure=yes", "-L", forward]
+        if self.reuses_connection():
+            command = [*self._ssh("-tt", *options, control_master="no"), "sleep 2147483647"]
+        else:
+            command = self._ssh("-N", *options)
         return subprocess.Popen(command, stdin=subprocess.DEVNULL)
 
-    def _ssh(self, *options: str) -> list[str]:
+    def close_tunnel(self, local_port: int, node: str, remote_port: int) -> None:
+        """Take a tunnel's port forwarding out of the reused connection, which outlives
+        the tunnel's own ssh. Nothing to do where connections are not reused."""
+        if not self.reuses_connection():
+            return
+        forward = f"127.0.0.1:{local_port}:{node}:{remote_port}"
+        subprocess.run(
+            self._ssh("-O", "cancel", "-L", forward),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            check=False,  # no open connection, or no such forwarding: nothing to take out
+        )
+
+    def reuses_connection(self) -> bool:
+        """Whether commands and tunnels share one open connection (see ``cluster``)."""
+        return bool(self._reuse_connection())
+
+    def _ssh(self, *options: str, control_master: str = "auto") -> list[str]:
         return [
             _ssh_program(),
             *("-i", str(self.ssh_key)),
             *("-o", "IdentitiesOnly=yes"),  # offer only this key, not every key ssh knows
             *("-o", "ConnectTimeout=30"),
             *("-o", "ServerAliveInterval=30"),  # notice a dead connection in about 90 s
-            *self._reuse_connection(),
+            *self._reuse_connection(control_master),
             *options,
             f"{self.username}@{self.host}",
         ]
 
-    def _reuse_connection(self) -> list[str]:
+    def _reuse_connection(self, control_master: str = "auto") -> list[str]:
         """ssh options that keep the first connection open and send every later command
         and tunnel through it, where the supercomputer asks for a one-time code at each
-        login. Windows' OpenSSH cannot do this, so there every connection logs in anew."""
+        login. Windows' OpenSSH cannot do this, so there every connection logs in anew.
+
+        ``control_master`` "auto": use the open connection, or open and keep one; "no":
+        use the open connection if there is one, else log in anew without keeping it.
+        """
         if not self.cluster.multiplex or os.name == "nt":
             return []
         folder = Path.home() / ".ssh"
         folder.mkdir(mode=0o700, exist_ok=True)
         return [
-            *("-o", "ControlMaster=auto"),
+            *("-o", f"ControlMaster={control_master}"),
             *("-o", f"ControlPath={folder / 'gagnvist-%C'}"),  # %C: a hash of host and user
             *("-o", f"ControlPersist={CONNECTION_KEPT}"),
         ]
