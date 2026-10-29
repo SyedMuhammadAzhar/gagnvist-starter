@@ -56,10 +56,10 @@ Where a table has no number, it writes a marker instead:
 
 | Marker | Meaning |
 |---|---|
-| `..` | not available, or confidential |
+| `..` | not available |
 | `.` | not applicable |
-| `-` | exactly zero |
-| `...` | provisional |
+| `-` | zero (read as 0) |
+| `...` | no number; the files do not say why (used in a few tables, mostly for early years) |
 
 ## Look-alike tables
 
@@ -77,13 +77,32 @@ unpacks it into the data folder, `data/`, which holds:
 - `catalogue.csv`: every table in both languages, one row each: dataset, language,
   table code, title, folder, the table's API address, when it was last updated, its
   number of cells, and the folder of the same table in the other language;
-- a folder per table and language, `<dataset>/<is|en>/<API path>/<code>/`, with:
-  - `metadata.json`: the table's description as the API gives it: the title, and every
-    dimension with its code, label, and the codes and labels of its categories;
+- a folder per table and language, `<dataset>/<is|en>/<API path>/<file name>/`, with
+  (the file name is the table's name in the API, usually its code: `SAM07501e` and
+  `SJA06100b` are two of the exceptions):
+  - `metadata.json`: the table's description as the API gives it: the title (161 of
+    the 3,772 tables have none), and every dimension with its code, label, and the codes and labels of its categories;
   - `data.px`: the numbers, in PxWeb's own file format: a header that lists the
     dimensions and categories, then the numbers, row by row;
 - `README.md`: what the release contains, and which tables were left out and why;
 - `SHA256SUMS.txt`: a checksum of every file (`gagnvist check-data` uses it).
+
+### Corrections to the data's own README
+
+`data/README.md` comes inside the data zip, which stays as it is so that everyone's copy
+is the same. Five things in it are not right:
+
+- **Encodings.** Of the 3,772 `data.px` files, 1,632 are UTF-8 (each with a byte-order
+  mark), 1,336 ISO-8859-15, 795 Windows-1252, and 9 English tables declare GB18030 (their
+  text is plain ASCII, so it reads the same). It says "mostly UTF-8".
+- **Markers.** `-` is zero, and `...` is not "provisional": no file says what it means
+  (see [Missing numbers](#missing-numbers)).
+- **Pairs.** Not every pair holds the same figures: `catalogue.csv` pairs VIS06123 and
+  VIS06125 by address, although their two editions are crossed. The cards pair them by
+  content (see [cards/README.md](../cards/README.md#both-languages)).
+- **`catalogue.csv`** has one more column than it lists: `pairing`, which says how each
+  pair was confirmed.
+- **Checking on Windows** is the command `gagnvist check-data`, not a script.
 
 `gagnvist build-index` puts every table's description into one SQLite database,
 `local/tables.sqlite`, which you can query yourself (see

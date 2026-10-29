@@ -68,6 +68,10 @@ the shipped one in `index/`, and build yours in a folder of its own.
 
 3. `gagnvist build-vectors`, then `gagnvist evaluate`.
 
+   Keep the tunnel to the shared models open too (`gagnvist lumi connect`, in a terminal
+   of its own): `ask` and `evaluate` still use the shared chat model. That makes three
+   terminals: the shared models' tunnel, your embedding server's tunnel, and your work.
+
 Some embedding models expect a word before every text: the e5 models, for example,
 want `query: ` before a question and `passage: ` before a document. Add them to the
 cards' texts and in `find_tables` (`answering/find_tables.py`), where the question is

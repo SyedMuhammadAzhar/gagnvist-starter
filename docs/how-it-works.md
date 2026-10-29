@@ -85,7 +85,7 @@ read, and give the results to the model as facts.
 **What it does.** The chosen numbers are read from the table's `data.px`
 (`data/px_reader.py`). No model is involved: the numbers are exactly the ones Statistics
 Iceland published. A number the table does not give appears as a marker, which is
-explained in the answer (`..` not available, `.` not applicable, `-` exactly zero).
+explained in the answer (`..` not available, `.` not applicable); `-` is read as 0.
 This step is rarely the problem.
 
 ## 4. Writing the answer
@@ -106,9 +106,11 @@ fail rather than show a doubtful answer.
 
 ## Measuring
 
-`gagnvist evaluate` runs the whole pipeline on questions with known answers and counts
-the right ones, and how many came from the right table (see the README). The second
-number tells you whether to work on the search (step 1) or on the rest (steps 2 to 4).
+`gagnvist evaluate` runs the whole pipeline on questions with known answers, at three
+levels (one number from one table; a calculation within one table; two tables), and
+shows which answers are right and why the others are not (see
+[questions/README.md](../questions/README.md)). An answer from the wrong table points to
+the search (step 1); a wrong number from the right table points to steps 2 to 4.
 
 ## Beyond the starter kit
 
