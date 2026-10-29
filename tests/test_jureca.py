@@ -273,10 +273,13 @@ def test_jurecas_own_limits_are_enforced(
 
 
 @needs_posix
-def test_one_job_at_a_time_on_jureca(fake_jureca: FakeLumi) -> None:
+def test_two_jobs_at_a_time_on_jureca(fake_jureca: FakeLumi) -> None:
+    """A chat model and an embedding model, as on LUMI; each is a whole node there."""
     fake_jureca.add_model("qwen7")
     fake_jureca.add_job("100", "gagnvist-embeddings")
-    with pytest.raises(LumiError, match=r"already have 1 gagnvist jobs \(the limit is 1\)"):
+    job = start_server(fake_jureca.lumi, fake_jureca.settings, ServerRequest("chat", "qwen7"))
+    assert job.isdigit()
+    with pytest.raises(LumiError, match=r"already have 2 gagnvist jobs \(the limit is 2\)"):
         start_server(fake_jureca.lumi, fake_jureca.settings, ServerRequest("chat", "qwen7"))
 
 

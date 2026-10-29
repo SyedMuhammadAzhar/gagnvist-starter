@@ -44,7 +44,7 @@ JURECA = Cluster(
     partition_help=(
         "dc-gpu-devel, for quick tests only, often starts sooner but allows at most 2 hours"
     ),
-    max_jobs=1,  # a job takes a whole node: one at a time for each person
+    max_jobs=2,  # a chat model and an embedding model, each on a whole node (as on LUMI)
     gpu_choices=(1, 2, 4),
     cpus_per_gpu=8,
     container_group="container",

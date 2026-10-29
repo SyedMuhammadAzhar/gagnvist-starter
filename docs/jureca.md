@@ -136,9 +136,11 @@ What is different:
 
 - **A job always gets a whole node**, with four NVIDIA A100 GPUs, whether you ask for
   `--gpus 1`, `2` or `4`. It costs the same either way: 128 core-hours per hour.
-- **One job at a time** for each person (JURECA's own rule for its `dc-gpu-devel`
-  partition is two), and at most 6 hours per job, or 2 on `dc-gpu-devel`
-  (`--partition dc-gpu-devel`), which often starts sooner and is meant for short tests.
+- **Two jobs at a time** for each person, as on LUMI — a chat model and an embedding
+  model — but each is a whole node, so two cost 256 core-hours per hour. At most 6
+  hours per job, or 2 on `dc-gpu-devel` (`--partition dc-gpu-devel`), which often
+  starts sooner and is meant for short tests (JURECA itself allows 2 running jobs
+  there).
 - **Downloads happen on a login node**, as on LUMI, because the compute nodes have no
   internet. Your models go to your folder in the project; `gagnvist jureca download`
   prints the path.
@@ -155,8 +157,8 @@ your computer, so that they can be open next to LUMI's (8801, 8802).
 
 - **Cost:** a job is billed for its whole node, 128 core-hours per hour, busy or idle,
   until it ends, however many of its GPUs it uses. Stop what you do not use.
-- **Limits** that the starter kit sets, so that no team can use up the budget: at most 1
-  job at a time for each person, at most 6 hours per job (2 on `dc-gpu-devel`).
+- **Limits** that the starter kit sets, so that no team can use up the budget: at most 2
+  jobs at a time for each person, at most 6 hours per job (2 on `dc-gpu-devel`).
 - **`dc-gpu-devel` is for tests.** JSC keeps it for debugging and short tests, at most
   2 hours per job.
 - **No internet on the compute nodes.** Everything a job needs must be downloaded
