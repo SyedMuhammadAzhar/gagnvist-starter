@@ -4,13 +4,13 @@
 
 [lumi]
 host = "lumi.csc.fi"
-project = "project_465003343"            # the hackathon's LUMI project
+project = "project_462001820"            # the hackathon's LUMI project
 # The software that model jobs run in: a container of the LUMI AI Factory.
 container = "/appl/local/laifs/containers/lumi-multitorch-u24r70f21m50t210-20260415_130625/lumi-multitorch-full-u24r70f21m50t210-20260415_130625.sif"
 
 [shared_services]
 local_port = 8765                        # port on your computer for the tunnel to LUMI
-gateway_user = "azharsye"                # who runs the shared models on LUMI
+gateway_user = "syemuhaz"                # who runs the shared models on LUMI
 gateway_job = "gagnvist-gateway"         # the name of that job
 gateway_port = 4000                      # the port it listens on inside LUMI
 
