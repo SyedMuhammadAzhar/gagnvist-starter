@@ -327,7 +327,7 @@ gagnvist lumi connect --job <job id>     # prints GAGNVIST_CHAT_MODEL=numbers-v1
 | `the shared models are not running right now` | Tell the organizers. |
 | `port 8765 on this computer is already in use` | The message says whether it is a tunnel left open (and how to stop it) or another program. Or add `GAGNVIST_LOCAL_PORT=8790` to `.env`. |
 | `this computer does not let programs use port ...` | Windows reserves that port: add `GAGNVIST_LOCAL_PORT=8790` (or another port) to `.env`. |
-| `job ... is still waiting for a GPU` | LUMI is busy; it starts when a GPU is free. For a quick test only, `--partition dev-g --hours 3` (or fewer hours) often starts sooner. |
+| `job ... is still waiting for a GPU` | LUMI is busy; it starts when a GPU is free. For a quick test only, `--partition dev-g --hours 3` (or fewer hours) often starts sooner. If it keeps waiting while other jobs start, a maintenance break may lie ahead: LUMI does not start a job whose hours would reach into the break. Stop it (`gagnvist lumi stop JOB`) and start it again with fewer hours (`--hours 2`). |
 | `job ... is still loading its model` | Wait a minute. If it takes longer than about ten minutes, look at `gagnvist lumi log JOB`. |
 | A server job ends at once | `gagnvist lumi log JOB` shows why: often the model does not fit (try `--gpus 2` or a shorter `--context`), or the folder is not a complete model. |
 | `you already have 2 gagnvist jobs` | `gagnvist lumi jobs`, then `gagnvist lumi stop JOB` for one you do not need (a stopped job no longer counts). |
