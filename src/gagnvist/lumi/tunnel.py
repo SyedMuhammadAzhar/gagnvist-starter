@@ -68,7 +68,10 @@ def hold_tunnel(
                     time.sleep(RECONNECT_AFTER)
                     continue
 
-                say(f"Opening a tunnel: 127.0.0.1:{local_port} -> {node}:{remote_port} on {label}")
+                target = lumi.node_address(node)  # by the name the login node reaches it
+                say(
+                    f"Opening a tunnel: 127.0.0.1:{local_port} -> {target}:{remote_port} on {label}"
+                )
                 process = lumi.open_tunnel(local_port, node, remote_port)
                 status: int | tuple[str, int]
                 try:

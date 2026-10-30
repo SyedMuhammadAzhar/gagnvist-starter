@@ -57,6 +57,9 @@ class LocalTunnel:
     def reuses_connection(self) -> bool:
         return False  # as on LUMI: every tunnel is a connection of its own
 
+    def node_address(self, node: str) -> str:
+        return node  # as on LUMI: a node is reached by its own name
+
     def close_tunnel(self, local_port: int, node: str, remote_port: int) -> None:
         self.closed.append((local_port, node, remote_port))
 
