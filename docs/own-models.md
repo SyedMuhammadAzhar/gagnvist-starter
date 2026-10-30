@@ -39,7 +39,7 @@ gagnvist lumi download Qwen/Qwen2.5-0.5B-Instruct
 ```
 
 It printed the progress of each file, then "Downloaded Qwen/Qwen2.5-0.5B-Instruct to
-/scratch/project_465003343/azharsye/gagnvist/models/Qwen2.5-0.5B-Instruct" and the
+/scratch/project_462001820/syemuhaz/gagnvist/models/Qwen2.5-0.5B-Instruct" and the
 two ways to serve it. The 0.5B model (about 1 GB, 10 files) took 13 seconds; a 7B model
 (15 GB) takes a few minutes. Only the files vLLM needs are downloaded: when a repository
 has its weights both as safetensors and in PyTorch's older `.bin` format, the older
