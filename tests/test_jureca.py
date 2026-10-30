@@ -125,11 +125,13 @@ def test_a_login_to_jureca_reuses_one_connection(
     arguments = json.loads((tmp_path / "ssh-arguments.json").read_text(encoding="utf-8"))
     assert "ControlMaster=auto" in arguments and "ControlPersist=10h" in arguments
     assert arguments[arguments.index("ControlMaster=auto") + 2].startswith("ControlPath=")
+    assert "AddressFamily=inet" in arguments  # a from= clause names IPv4 networks
     assert arguments[-2] == "jon1@jureca.fz-juelich.de"
 
     Lumi.from_settings(settings).run("true")  # LUMI: every connection logs in anew
     arguments = json.loads((tmp_path / "ssh-arguments.json").read_text(encoding="utf-8"))
     assert "ControlMaster=auto" not in arguments
+    assert "AddressFamily=inet" not in arguments
     assert arguments[-2] == "jon@lumi.csc.fi"
 
 
@@ -469,7 +471,8 @@ def test_a_tunnel_goes_through_the_open_connection_and_is_taken_out_again(
     arguments = json.loads(record.read_text(encoding="utf-8"))
     assert "ControlMaster=no" in arguments and "ControlMaster=auto" not in arguments
     assert any(argument.startswith("ControlPath=") for argument in arguments)
-    assert arguments[arguments.index("-L") + 1] == "127.0.0.1:8775:jrc0601:4000"
+    # To the node's InfiniBand name: a login node cannot reach jrc0601 itself (checked live)
+    assert arguments[arguments.index("-L") + 1] == "127.0.0.1:8775:jrc0601i:4000"
     # Through the open connection "-N" would end at once: a command that never ends
     # keeps the tunnel's ssh, and so the tunnel, alive instead; its terminal (-tt) is
     # hung up when the ssh ends, which ends the command too (checked on JURECA).
@@ -480,7 +483,7 @@ def test_a_tunnel_goes_through_the_open_connection_and_is_taken_out_again(
     jureca.close_tunnel(8775, "jrc0601", 4000)
     arguments = json.loads(record.read_text(encoding="utf-8"))
     assert arguments[arguments.index("-O") + 1] == "cancel"
-    assert arguments[arguments.index("-L") + 1] == "127.0.0.1:8775:jrc0601:4000"
+    assert arguments[arguments.index("-L") + 1] == "127.0.0.1:8775:jrc0601i:4000"
     record.unlink()
     lumi = Lumi("jon", "lumi.csc.fi", tmp_path / "key", LUMI)
     assert not lumi.reuses_connection()

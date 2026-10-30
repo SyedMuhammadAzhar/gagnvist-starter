@@ -48,6 +48,13 @@ class Cluster:
     # Logging in. ``multiplex``: open one ssh connection and let every command and
     # tunnel reuse it, for a system that asks for a one-time code at each login.
     multiplex: bool
+    # ``ipv4_only``: connect over IPv4 only, for a system that accepts a key only from
+    # the networks its from= clause names (IPv4 ranges), which a computer with IPv6
+    # would otherwise reach from an IPv6 address the clause does not name.
+    ipv4_only: bool
+    # How a login node reaches the compute node that Slurm calls ``node``: "{node}"
+    # itself, or another name of the same node, for example on a faster network.
+    node_address: str
     key_hint: str  # what to check when the key is refused
     host_key_hint: str  # where the host key's fingerprints are published
     # Pieces of the job scripts (job_templates/*.sbatch).

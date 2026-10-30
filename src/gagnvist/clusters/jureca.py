@@ -21,8 +21,18 @@ and ``/p/scratch/<project>``), the partitions' limits (dc-gpu 24 h; dc-gpu-devel
 units per node-hour), everyone's jobs visible in squeue, apptainer refusing an account
 outside the ``container`` group, the GPU budget above, the nodes' names (``jrc0406``;
 ``hostname`` on a node says ``jrc0406.jureca``, and the login node resolves both), and
-tunnels through the shared ssh connection (see ``lumi/connection.py``). Still
-unverified: the vLLM image on the A100 driver, and the login node reaching a job's port.
+tunnels through the shared ssh connection (see ``lumi/connection.py``).
+
+Checked live on the night of 2026-10-30: a login node reaches a compute node only by
+its InfiniBand name, ``jrc0193i`` (Slurm's NodeAddr; port 22 open), not by the name
+squeue prints, ``jrc0193`` (port 22 refused, other ports dropped): hence
+``node_address``. ``jureca.fz-juelich.de`` has IPv6 addresses, and JSC's access page
+says a client that prefers IPv6 needs a from= clause with its IPv6 address: hence
+``ipv4_only``. The nodes run Rocky Linux 9.8; the login node's NVIDIA driver is
+610.57.04, enough for the CUDA 13.0 of vLLM's image v0.32.0 (9.2 GB to pull); the
+A100s have 40 GB each; the QoS ``normal`` allows 24 h per job, and ``dc-gpu-devel``
+2 running jobs. Still unverified: vLLM itself on the A100 nodes, and the gateway job
+end to end.
 """
 
 from __future__ import annotations
@@ -55,6 +65,8 @@ JURECA = Cluster(
         "budget (JURECA-DC_GPU) in JuDoor; ask the organizers."
     ),
     multiplex=True,  # JURECA may ask for a one-time code at every login
+    ipv4_only=True,  # a from= clause names IPv4 ranges; jureca.fz-juelich.de has IPv6 too
+    node_address="{node}i",  # the node's InfiniBand name (jrc0193i): see the docstring
     key_hint=(
         "A key added in JuDoor takes up to 15 minutes to work, and its from= clause must "
         "name the network you are on now (ask a search engine 'what is my IP')."

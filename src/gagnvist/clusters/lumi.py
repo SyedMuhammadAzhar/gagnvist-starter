@@ -30,6 +30,8 @@ LUMI = Cluster(
     container_group="",
     partition_access_hint="",  # every member of a LUMI project may use its partitions
     multiplex=False,
+    ipv4_only=False,  # lumi.csc.fi has no IPv6 address, and MyCSC keys have no from= clause
+    node_address="{node}",  # nid005029 is reached by that name
     key_hint="A key you have just added in MyCSC can take a couple of hours to reach LUMI.",
     host_key_hint="LUMI's host key (see docs/lumi.md)",
     modules="module purge\nmodule load Local-LAIF lumi-aif-singularity-bindings || exit 1",

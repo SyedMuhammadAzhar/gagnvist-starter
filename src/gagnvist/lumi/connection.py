@@ -107,7 +107,7 @@ class Lumi:
         after this ssh ends, so :meth:`close_tunnel` takes it out again. (All checked
         on JURECA with OpenSSH 9.9.)
         """
-        forward = f"127.0.0.1:{local_port}:{node}:{remote_port}"
+        forward = f"127.0.0.1:{local_port}:{self.node_address(node)}:{remote_port}"
         options = ["-o", "ExitOnForwardFailure=yes", "-L", forward]
         if self.reuses_connection():
             command = [*self._ssh("-tt", *options, control_master="no"), "sleep 2147483647"]
@@ -120,13 +120,22 @@ class Lumi:
         the tunnel's own ssh. Nothing to do where connections are not reused."""
         if not self.reuses_connection():
             return
-        forward = f"127.0.0.1:{local_port}:{node}:{remote_port}"
+        forward = f"127.0.0.1:{local_port}:{self.node_address(node)}:{remote_port}"
         subprocess.run(
             self._ssh("-O", "cancel", "-L", forward),
             stdin=subprocess.DEVNULL,
             capture_output=True,
             check=False,  # no open connection, or no such forwarding: nothing to take out
         )
+
+    def node_address(self, node: str) -> str:
+        """The name a login node reaches a compute node by (see ``Cluster.node_address``)."""
+        return self.cluster.node_address.format(node=node)
+
+    def manual_login(self) -> str:
+        """The ssh command for logging in by hand, connecting as the kit itself does."""
+        ipv4 = "-4 " if self.cluster.ipv4_only else ""
+        return f"ssh {ipv4}-i {quoted(self.ssh_key)} {self.username}@{self.host}"
 
     def reuses_connection(self) -> bool:
         """Whether commands and tunnels share one open connection (see ``cluster``)."""
@@ -139,6 +148,7 @@ class Lumi:
             *("-o", "IdentitiesOnly=yes"),  # offer only this key, not every key ssh knows
             *("-o", "ConnectTimeout=30"),
             *("-o", "ServerAliveInterval=30"),  # notice a dead connection in about 90 s
+            *(("-o", "AddressFamily=inet") if self.cluster.ipv4_only else ()),
             *self._reuse_connection(control_master),
             *options,
             f"{self.username}@{self.host}",
@@ -184,8 +194,8 @@ class Lumi:
             return (
                 f"{facts.label} accepted your key, then asked for a one-time code (the "
                 "multi-factor authentication of your account), which could not be typed "
-                f"here. Log in once yourself with `ssh -i {quoted(self.ssh_key)} "
-                f"{self.username}@{self.host}` and type the code; see {facts.docs}."
+                f"here. Log in once yourself with `{self.manual_login()}` and type the code; "
+                f"see {facts.docs}."
             )
         if "Permission denied" in errors:
             return (
@@ -196,7 +206,7 @@ class Lumi:
         if "Host key verification failed" in errors:
             return (
                 f"ssh could not verify the identity of {self.host}; connect once yourself "
-                f"with `ssh -i {quoted(self.ssh_key)} {self.username}@{self.host}` and accept "
+                f"with `{self.manual_login()}` and accept "
                 f"{facts.host_key_hint}"
             )
         if "Could not resolve hostname" in errors:
