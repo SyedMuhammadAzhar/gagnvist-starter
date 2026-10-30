@@ -42,7 +42,10 @@ Accounts are managed in [JuDoor](https://judoor.fz-juelich.de/), JSC's portal:
    "what is my IP". **From any other network the key is simply refused** (`Permission
    denied (publickey)`), so list every network you will actually use. Make an ed25519
    key if you have none (`ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_jureca`, with a
-   passphrase). A new key works within 15 minutes.
+   passphrase). A new key works within 15 minutes. The starter kit connects to JURECA
+   over IPv4 only, so the clause needs only IPv4 ranges; when you log in by hand, use
+   `ssh -4` (section 3), because a computer that has IPv6 would otherwise reach JURECA
+   from an IPv6 address, which the clause does not name, and be refused.
 4. **Only for models of your own** (section 5), two more things, which the shared
    models do not need:
    - **Container access.** In JuDoor: *Software* → *Request access to restricted
@@ -80,10 +83,11 @@ switching is one word.
 ## 3. Log in once by hand
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_jureca your_jureca_username@jureca.fz-juelich.de
+ssh -4 -i ~/.ssh/id_ed25519_jureca your_jureca_username@jureca.fz-juelich.de
 ```
 
-The first time, ssh shows JURECA's host key fingerprint and asks whether to trust it.
+`-4` makes ssh connect over IPv4, the addresses your key's `from=` clause names (the
+starter kit always does). The first time, ssh shows JURECA's host key fingerprint and asks whether to trust it.
 Check that it matches the fingerprint JuDoor shows next to the key upload form for
 JURECA; at the time of writing:
 
@@ -181,7 +185,7 @@ your computer, so that they can be open next to LUMI's (8801, 8802).
 
 | Message | What to do |
 |---------|------------|
-| `JURECA did not accept the SSH key` / `Permission denied (publickey)` | Check `GAGNVIST_JURECA_USERNAME` and `GAGNVIST_JURECA_SSH_KEY` in `.env`. Is your current network in the key's `from=` clause ("what is my IP")? A key added in the last 15 minutes may not work yet. |
+| `JURECA did not accept the SSH key` / `Permission denied (publickey)` | Check `GAGNVIST_JURECA_USERNAME` and `GAGNVIST_JURECA_SSH_KEY` in `.env`. Is your current network in the key's `from=` clause ("what is my IP")? Logging in by hand, did you use `ssh -4` (section 3)? A key added in the last 15 minutes may not work yet. |
 | `JURECA accepted your key, then asked for a one-time code` / `Permission denied (keyboard-interactive)` | Your account has multi-factor authentication: log in once by hand (section 3), or run `gagnvist jureca check` in a terminal, and type the code from your authenticator app. |
 | `your account is not (yet) a member of the project` | Ask to join the project in JuDoor, and wait for the manager's approval; ask the organizers if it does not come. |
 | `NOTE: your account is not in the group 'container' yet` / `is not in group container` (apptainer, in a job's log) | Request the *Container Runtime Engine* in JuDoor (section 1, step 4); `download` and your own jobs need it; the shared models work meanwhile. |
