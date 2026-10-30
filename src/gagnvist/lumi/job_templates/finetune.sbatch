@@ -9,6 +9,10 @@
 #
 #     gagnvist lumi start chat <model> --adapter {{run_name}}
 #
+# The organizers can end the job, although Slurm lets only you cancel it: the job ends
+# itself when a file named after its job id appears in their folder of stop files (only
+# they can create files there), which the loop below looks for every few seconds.
+#
 #SBATCH --job-name=gagnvist-finetune
 #SBATCH --account={{project}}
 #SBATCH --partition={{partition}}
@@ -28,7 +32,12 @@ set -euo pipefail
 umask 022
 work=$(mktemp -d "/tmp/gagnvist-$SLURM_JOB_ID-XXXXXX")
 chmod 700 "$work"
-trap 'rm -rf "$work"' EXIT
+cleanup() {
+    kill ${training:-} 2>/dev/null || true
+    rm -rf "$work"
+}
+trap cleanup EXIT
+stop_file="{{stop_folder}}/$SLURM_JOB_ID"
 
 cat >"$work/finetune_lora.py" <<'GAGNVIST_END_OF_SCRIPT'
 {{finetune_script}}
@@ -41,5 +50,11 @@ export HF_HUB_OFFLINE=1  # use only the downloaded files: never wait for a downl
 srun singularity run {{container}} python "$work/finetune_lora.py" \
     --model {{model_path}} \
     --data {{run_folder}}/train.jsonl --output {{run_folder}}/adapter \
-    --epochs {{epochs}} --rank {{rank}} --learning-rate {{learning_rate}}
+    --epochs {{epochs}} --rank {{rank}} --learning-rate {{learning_rate}} &
+training=$!
+while kill -0 "$training" 2>/dev/null; do
+    if [ -e "$stop_file" ]; then echo "The organizers stopped this job." >&2; exit 0; fi
+    sleep 5
+done
+wait "$training"  # the training's exit status: a failed training fails the job
 echo "Finished: the adapter is in {{run_folder}}/adapter"

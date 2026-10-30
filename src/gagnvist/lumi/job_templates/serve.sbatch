@@ -13,6 +13,10 @@
 # Cost: every GPU chip costs 0.5 GPU-hours per hour, busy or idle, until the job ends.
 # Stop it when you are done:  gagnvist lumi stop <job id>
 #
+# The organizers can end the job too, although Slurm lets only you cancel it: the job
+# ends itself when a file named after its job id appears in their folder of stop files
+# (only they can create files there), which the loops below look for every few seconds.
+#
 #SBATCH --job-name={{job_name}}
 #SBATCH --account={{project}}
 #SBATCH --partition={{partition}}
@@ -40,6 +44,7 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 143' TERM  # stopping the job sends TERM: end, and clean up as above
+stop_file="{{stop_folder}}/$SLURM_JOB_ID"
 
 # The gatekeeper's port, and the key. The key is passed in an environment variable:
 # a command-line argument could be seen by other users of this node.
@@ -73,6 +78,7 @@ until (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; do
         echo "The server stopped before it was ready: see the messages above." >&2
         exit 1
     fi
+    if [ -e "$stop_file" ]; then echo "The organizers stopped this job." >&2; exit 0; fi
     sleep 2
 done
 printf '{"job": "%s", "kind": "%s", "model": "%s", "node": "%s", "port": %s, "key": "%s"}\n' \
@@ -81,6 +87,7 @@ printf '{"job": "%s", "kind": "%s", "model": "%s", "node": "%s", "port": %s, "ke
 echo "Ready: {{request_name}} on $(hostname), port $port"
 
 while kill -0 "$server" 2>/dev/null && kill -0 "$gatekeeper" 2>/dev/null; do
+    if [ -e "$stop_file" ]; then echo "The organizers stopped this job." >&2; exit 0; fi
     sleep 2
 done
 echo "The server stopped: see the messages above." >&2
