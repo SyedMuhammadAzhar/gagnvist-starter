@@ -44,7 +44,9 @@ the shipped one in `index/`, and build yours in a folder of its own.
 
 ## Another embedding model
 
-1. Download it and serve it on LUMI (see [lumi.md](lumi.md)):
+1. Download it and serve it on LUMI (see [lumi.md](lumi.md)); on JURECA the same with
+   `jureca` in place of `lumi`, and port 8812 instead of 8802 below (see
+   [jureca.md, section 8](jureca.md#8-the-lumi-guides-read-for-jureca)):
 
    ```bash
    gagnvist lumi download intfloat/multilingual-e5-large

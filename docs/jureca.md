@@ -18,6 +18,7 @@ leaves your computer.
 - [5. Models of your own](#5-models-of-your-own)
 - [6. Rules, limits and costs](#6-rules-limits-and-costs)
 - [7. Troubleshooting](#7-troubleshooting)
+- [8. The LUMI guides, read for JURECA](#8-the-lumi-guides-read-for-jureca)
 
 ## 1. Your JURECA account
 
@@ -158,8 +159,11 @@ What is different:
   check` tells you if your account lacks either. Without the GPU budget, `start` is
   refused by Slurm and says so; without container access, `download` fails and a job
   stops at once (`gagnvist jureca log JOB` shows apptainer's refusal).
-- Fine-tuning (`gagnvist jureca finetune`) works the same way; the adapter is served
-  with `gagnvist jureca start chat <model> --adapter <run>`.
+- Fine-tuning (`gagnvist jureca finetune`) needs a training library (peft) that
+  JURECA's container does not have. The organizers add it once, in the project; until
+  then the command says so and submits nothing, and `gagnvist lumi finetune` works as
+  before. With the library in place the command works as on LUMI, and the adapter is
+  served with `gagnvist jureca start chat <model> --adapter <run>`.
 
 Tunnels to your own servers on JURECA use ports 8811 (chat) and 8812 (embeddings) on
 your computer, so that they can be open next to LUMI's (8801, 8802).
@@ -191,6 +195,7 @@ your computer, so that they can be open next to LUMI's (8801, 8802).
 | `NOTE: your account is not in the group 'container' yet` / `is not in group container` (apptainer, in a job's log) | Request the *Container Runtime Engine* in JuDoor (section 1, step 4); `download` and your own jobs need it; the shared models work meanwhile. |
 | `NOTE: your account cannot use the GPU partitions of ... yet` / `Slurm refused the job: your account cannot use that partition` | Your membership lacks the project's GPU budget (section 1, step 4): ask the organizers; the shared models work meanwhile. |
 | `NOTE: the container for jobs of your own is not there (yet)` | The organizers have not put the container on JURECA yet: `download`, `start` and `finetune` wait for it; the shared models work anyway. |
+| `fine-tuning is not available on JURECA yet` | The organizers have not added the training library (section 5); fine-tune on LUMI meanwhile (`gagnvist lumi finetune`). |
 | `could not verify the identity of jureca.fz-juelich.de` | Log in once by hand (section 3). |
 | `port 8775 on this computer is already in use` | Add `GAGNVIST_JURECA_LOCAL_PORT=8791` (or another free port) to `.env`. |
 | `the shared models are not running right now` | Tell the organizers; meanwhile use LUMI's (`gagnvist lumi connect`, and `--cluster lumi` or `GAGNVIST_CLUSTER=lumi`). |
@@ -198,3 +203,23 @@ your computer, so that they can be open next to LUMI's (8801, 8802).
 
 Anything about ssh, keys, `.env` or the tunnel that is not here: the
 [LUMI troubleshooting table](lumi.md#9-troubleshooting) applies to JURECA too.
+
+## 8. The LUMI guides, read for JURECA
+
+[lumi.md](lumi.md), [own-models.md](own-models.md) and [re-embedding.md](re-embedding.md)
+describe every step with LUMI's names and numbers. The steps are the same on JURECA;
+read them with this table at hand:
+
+| In the LUMI guides | On JURECA |
+|---|---|
+| `gagnvist lumi ...` | `gagnvist jureca ...` |
+| `GAGNVIST_LUMI_USERNAME`, `GAGNVIST_SSH_KEY`, `GAGNVIST_LOCAL_PORT` in `.env` | `GAGNVIST_JURECA_USERNAME`, `GAGNVIST_JURECA_SSH_KEY`, `GAGNVIST_JURECA_LOCAL_PORT` |
+| MyCSC (your account, your key) | JuDoor (section 1) |
+| `/scratch/project_462001820/<you>/gagnvist/...` | `/p/project1/training2654/<you>/gagnvist/...` |
+| a GPU chip with 64 GB; 0.5 GPU-hours per chip and hour | an A100 with 40 GB; a whole node of four, 128 core-hours per hour, however many you use |
+| `--gpus 2` for a model of about 14B parameters and up | the same: a model that needs more than about 30 GB in bf16 wants two A100s |
+| `small-g` (up to 12 h) and `dev-g` (up to 3 h) | `dc-gpu` (up to 6 h) and `dc-gpu-devel` (up to 2 h) |
+| port 8765 (the shared models), 8801 and 8802 (your own chat and embedding servers) | 8775, 8811 and 8812 |
+| your Hugging Face token in `~/.cache/huggingface/token` on LUMI | the same file in your home folder on JURECA |
+| LUMI's web interface for uploading a model | none: `gagnvist jureca download` |
+| `gagnvist lumi finetune` | needs the organizers' library first (section 5) |

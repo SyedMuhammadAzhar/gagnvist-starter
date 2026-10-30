@@ -6,7 +6,9 @@ or with a fine-tuned one, without changing any code: the kit reads which model t
 where, and with which key, from `.env`. This page walks through every step as one
 participant did it on 30 October 2026, with the commands, what they print, how long
 they took, and what to check. [lumi.md](lumi.md) explains the same commands one by one;
-[re-embedding.md](re-embedding.md) explains the vector index.
+[re-embedding.md](re-embedding.md) explains the vector index. On JURECA every step is
+the same with `jureca` in place of `lumi`; [jureca.md, section 8](jureca.md#8-the-lumi-guides-read-for-jureca)
+translates the names, paths, ports and GPU sizes used below.
 
 Before you start: `gagnvist lumi check` says "All set", and `gagnvist lumi connect`
 (the tunnel to the shared models) is open in a terminal of its own.
