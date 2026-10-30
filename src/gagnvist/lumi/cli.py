@@ -364,7 +364,8 @@ def _start(args: argparse.Namespace, settings: Settings) -> int:
     )
     job = start_server(lumi, settings, request)
     name = lumi.cluster.name
-    print(f"Submitted job {job}: a {args.kind} server for {args.model}.")
+    article = "an" if args.kind == "embeddings" else "a"
+    print(f"Submitted job {job}: {article} {args.kind} server for {args.model}.")
     print("It may wait for a free GPU first, and then needs a few minutes to load the model.")
     print(f"Follow it:      gagnvist {name} jobs   (its log: gagnvist {name} log {job})")
     print(f"When it is READY:  gagnvist {name} connect --job {job}")
