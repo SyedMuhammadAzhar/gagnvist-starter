@@ -134,8 +134,8 @@ Every command has `--help`.
 ## Making it better
 
 Start by measuring. `gagnvist evaluate` asks the questions in
-[questions/examples.jsonl](questions/examples.jsonl), whose answers are known: 26
-questions, each in English and Icelandic, at three levels. `easy` needs one number from
+[questions/examples.jsonl](questions/examples.jsonl), whose answers are known: 30
+questions, each in English and Icelandic (60 in all), ten per level at three levels. `easy` needs one number from
 one table, `medium` a calculation with several numbers from the same table, `hard`
 numbers from two different tables. For each question it prints `right` or `WRONG` (or
 `other table`: the right number from a table that does not hold it), the table the
