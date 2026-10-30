@@ -147,6 +147,8 @@ adds nothing to the hackathon's GPU bill.
 ## 6. Models of your own
 
 You can also run a model of your own choice, as a job under your own account.
+([own-models.md](own-models.md) walks through all of it step by step, with what each
+command prints and how long it takes.)
 
 **Download it** (once) from [Hugging Face](https://huggingface.co/models) into your
 folder on LUMI, `/scratch/<project>/<username>/gagnvist/models/`:
@@ -154,6 +156,10 @@ folder on LUMI, `/scratch/<project>/<username>/gagnvist/models/`:
 ```bash
 gagnvist lumi download Qwen/Qwen2.5-7B-Instruct
 ```
+
+Only the files vLLM needs are downloaded: other formats of the weights are left out,
+and so is PyTorch's older `.bin` format when the repository also has the weights as
+safetensors.
 
 Some models need a licence accepted on their Hugging Face page first ("gated"
 models, such as Llama). For those, LUMI also needs your Hugging Face
@@ -228,6 +234,12 @@ gagnvist lumi stop 1234567
 A teammate's model can be served by giving its full path, for example
 `gagnvist lumi start chat /scratch/<project>/<teammate>/gagnvist/models/<name>`.
 
+**Your files on LUMI**: `gagnvist lumi models` lists your models and fine-tuning runs
+with their sizes; `gagnvist lumi delete model <name>` and `gagnvist lumi delete run
+<name>` remove one (only in your own folder, and not while a running server of yours
+serves it). The project's disk space is shared by everyone: delete what you no longer
+use. A deleted model can be downloaded again.
+
 ## 7. Fine-tuning
 
 You can teach a model your own examples with LoRA, which trains a small *adapter*
@@ -263,14 +275,19 @@ gagnvist lumi connect --job <job id>     # prints GAGNVIST_CHAT_MODEL=numbers-v1
 
 - **Limits** that the starter kit sets, so that no team can use up the budget: at most 2
   jobs at a time for each person (so 4 for a team of two), at most 4 GPU chips per job,
-  at most 12 hours per job (3 hours on `dev-g`).
+  at most 12 hours per job (3 hours on `dev-g`). A job counts while it waits or runs;
+  one you have just stopped no longer does, so the next `start` or `finetune` is
+  accepted at once.
 - **`dev-g` is for quick tests.** LUMI keeps it for debugging and testing, not for real
   work, and warns that using it wrongly again and again can get an account suspended.
 - **Cost**: every GPU chip costs 0.5 GPU-hours per hour, busy or idle, until its job
   ends. `gagnvist lumi start` tells you the most a job can cost. Stop what you do not
   use.
 - **You can only stop your own jobs.** Slurm, LUMI's job system, refuses to cancel
-  anybody else's, including the shared models.
+  anybody else's, including the shared models. The organizers can end a gagnvist job of
+  anyone's, though (one left running by mistake, for example): the job ends itself when
+  a file named after it appears in the organizers' folder of stop files, and its log
+  ends with "The organizers stopped this job." Your files are not touched.
 - **What others can see.** Everyone on LUMI can see the names, sizes and nodes of all
   jobs. Your models and adapters, under `/scratch/<project>/<username>/gagnvist/`, can
   be read by the other members of the project (your teammates, and the other teams) but
@@ -309,7 +326,10 @@ gagnvist lumi connect --job <job id>     # prints GAGNVIST_CHAT_MODEL=numbers-v1
 | `job ... is still waiting for a GPU` | LUMI is busy; it starts when a GPU is free. For a quick test only, `--partition dev-g --hours 3` (or fewer hours) often starts sooner. |
 | `job ... is still loading its model` | Wait a minute. If it takes longer than about ten minutes, look at `gagnvist lumi log JOB`. |
 | A server job ends at once | `gagnvist lumi log JOB` shows why: often the model does not fit (try `--gpus 2` or a shorter `--context`), or the folder is not a complete model. |
-| `you already have 2 gagnvist jobs` | `gagnvist lumi jobs`, then `gagnvist lumi stop JOB` for one you do not need. |
+| `you already have 2 gagnvist jobs` | `gagnvist lumi jobs`, then `gagnvist lumi stop JOB` for one you do not need (a stopped job no longer counts). |
+| `your job ... serves '...': stop it first` | A running server of yours uses the model or adapter you want to delete: `gagnvist lumi stop JOB`, then delete. |
+| `there is no model '...' on LUMI` / `no run '...'` | `gagnvist lumi models` lists the exact names. |
+| A job's log ends with `The organizers stopped this job.` | The organizers ended it (see section 8); ask them if you do not know why. |
 | `... is not a folder of yours` | Someone else created or replaced a folder where your files belong. Tell the organizers; nothing was run or stored there. |
 | `Slurm, LUMI's job system, did not answer` | LUMI is busy; try again in a minute. |
 | `is not valid TOML` | `gagnvist.toml` was changed by mistake: `git checkout gagnvist.toml` brings back the original. |
