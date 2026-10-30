@@ -455,7 +455,7 @@ def test_every_template_renders_completely_and_is_valid_bash() -> None:
             project=PROJECT, partition="small-g", cpus="7", hours="2", container=CONTAINER,
             model_path="/m", run_folder="/r", run_name="r", epochs="1", rank="16",
             learning_rate="0.0002", stop_folder=STOP_FOLDER,
-            finetune_script="print('training')",
+            finetune_script="print('training')", finetune_environment="",
         ),
     }  # fmt: skip
     for name, given in values.items():

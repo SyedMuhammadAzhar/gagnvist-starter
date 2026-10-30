@@ -31,8 +31,12 @@ says a client that prefers IPv6 needs a from= clause with its IPv6 address: henc
 ``ipv4_only``. The nodes run Rocky Linux 9.8; the login node's NVIDIA driver is
 610.57.04, enough for the CUDA 13.0 of vLLM's image v0.32.0 (9.2 GB to pull); the
 A100s have 40 GB each; the QoS ``normal`` allows 24 h per job, and ``dc-gpu-devel``
-2 running jobs. Still unverified: vLLM itself on the A100 nodes, and the gateway job
-end to end.
+2 running jobs. Apptainer's site configuration binds all of ``/p`` (``bind path = /p``),
+so the ``--bind`` below is belt and braces; ``/p/project`` and ``/p/fastdata`` do not
+exist on JURECA (``/p/project1``, ``/p/scratch`` and ``/p/data1`` do). vLLM's image
+lacks ``peft``, which fine-tuning imports (checked against its Dockerfile and
+requirements): hence ``finetune_libraries``. Still unverified: vLLM itself on the
+A100 nodes, and the gateway job end to end.
 """
 
 from __future__ import annotations
@@ -50,7 +54,7 @@ JURECA = Cluster(
     project_pattern=r"[a-z][a-z0-9_-]{1,31}",
     project_root="/p/project1/{project}",
     user_folder="/p/project1/{project}/{username}",
-    path_pattern=r"/p/(?:project1?|scratch|fastdata)/[a-z][a-z0-9_-]{1,31}/[A-Za-z0-9_./-]+",
+    path_pattern=r"/p/(?:project1|scratch|data1)/[a-z][a-z0-9_-]{1,31}/[A-Za-z0-9_./-]+",
     partitions=("dc-gpu", "dc-gpu-devel"),
     partition_hours={"dc-gpu": 6, "dc-gpu-devel": 2},
     partition_help=(
@@ -60,6 +64,7 @@ JURECA = Cluster(
     gpu_choices=(1, 2, 4),
     cpus_per_gpu=8,
     container_group="container",
+    finetune_libraries="/p/project1/{project}/{gateway_user}/gagnvist/pylibs",  # peft: see below
     partition_access_hint=(
         "On JURECA the project manager has to give your membership the project's GPU "
         "budget (JURECA-DC_GPU) in JuDoor; ask the organizers."

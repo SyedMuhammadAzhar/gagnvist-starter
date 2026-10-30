@@ -28,6 +28,7 @@ LUMI = Cluster(
     gpu_choices=(1, 2, 4),
     cpus_per_gpu=7,  # LUMI bills a GPU chip at 0.5 GPU-hours per hour up to 8 cores and 64 GB
     container_group="",
+    finetune_libraries="",  # the LUMI AI Factory container ships peft
     partition_access_hint="",  # every member of a LUMI project may use its partitions
     multiplex=False,
     ipv4_only=False,  # lumi.csc.fi has no IPv6 address, and MyCSC keys have no from= clause

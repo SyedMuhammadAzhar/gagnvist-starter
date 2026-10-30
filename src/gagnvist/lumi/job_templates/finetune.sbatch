@@ -44,6 +44,7 @@ cat >"$work/finetune_lora.py" <<'GAGNVIST_END_OF_SCRIPT'
 GAGNVIST_END_OF_SCRIPT
 
 {{gpu_environment}}
+{{finetune_environment}}
 export HF_HUB_OFFLINE=1  # use only the downloaded files: never wait for a download
 
 srun {{container_runtime}} {{container}} python3 "$work/finetune_lora.py" \

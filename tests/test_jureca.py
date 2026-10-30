@@ -301,6 +301,8 @@ def test_a_teammates_model_on_jureca_is_named_by_its_full_path(fake_jureca: Fake
 @needs_posix
 def test_finetuning_on_jureca_uses_one_gpu_of_a_node(fake_jureca: FakeLumi, tmp_path: Path) -> None:
     fake_jureca.add_model("qwen7")
+    organizer = fake_jureca.root / "p" / "project1" / JURECA_PROJECT / ORGANIZER / "gagnvist"
+    (organizer / "pylibs" / "peft").mkdir(parents=True)  # the organizers installed peft
     data = tmp_path / "train.jsonl"
     data.write_text(
         '{"messages": [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]}\n',
@@ -312,7 +314,27 @@ def test_finetuning_on_jureca_uses_one_gpu_of_a_node(fake_jureca: FakeLumi, tmp_
     assert "#SBATCH --gres=gpu:1" in script and "#SBATCH --partition=dc-gpu" in script
     assert "#SBATCH --cpus-per-task=8" in script
     assert f"srun {JURECA.container_runtime} {JURECA_CONTAINER} python3" in script
+    # the vLLM image has no peft: the job takes it from the organizers' folder
+    libraries = f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/pylibs"
+    assert f"export PYTHONPATH={libraries}${{PYTHONPATH:+:$PYTHONPATH}}" in script
     assert (fake_jureca.mine("finetune", "run-1", "train.jsonl")).exists()
+
+
+@needs_posix
+def test_finetuning_on_jureca_is_refused_until_the_organizers_add_the_library(
+    fake_jureca: FakeLumi, tmp_path: Path
+) -> None:
+    """Without peft in the organizers' folder a job would only crash: say so instead."""
+    fake_jureca.add_model("qwen7")
+    data = tmp_path / "train.jsonl"
+    data.write_text(
+        '{"messages": [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]}\n',
+        encoding="utf-8",
+    )
+    request = FinetuneRequest(model="qwen7", data=data, name="run-1", hours=2)
+    with pytest.raises(LumiError, match=r"not available on JURECA yet.*peft.*pylibs"):
+        start_finetune(fake_jureca.lumi, fake_jureca.settings, request)
+    assert not fake_jureca.mine("finetune", "run-1").exists()
 
 
 @needs_posix
@@ -391,7 +413,9 @@ def test_the_job_scripts_render_for_jureca_and_are_valid_bash() -> None:
         learning_rate="0.0002",
         finetune_script="print('training')",
         stop_folder=f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/stop",
+        finetune_environment="export PYTHONPATH=/p/project1/x/o/gagnvist/pylibs",
     )
+    assert "export PYTHONPATH=/p/project1/x/o/gagnvist/pylibs\n" in finetune
     for script in (serve, finetune):
         assert "{{" not in script and "module purge" in script
         assert "Local-LAIF" not in script and "MIOPEN" not in script

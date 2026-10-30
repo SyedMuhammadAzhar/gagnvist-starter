@@ -215,6 +215,7 @@ def finetune_script(tmp_path: Path) -> Path:
             learning_rate="0.0002",
             stop_folder=str(tmp_path / "stop"),
             finetune_script=_template_text("finetune_lora.py"),
+            finetune_environment="",  # as on LUMI, whose container has peft
         ),
         encoding="utf-8",
     )

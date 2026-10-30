@@ -42,6 +42,10 @@ class Cluster:
     gpu_choices: tuple[int, ...]  # GPUs per job: a model is split evenly between them
     cpus_per_gpu: int  # CPU cores a job asks for, per GPU
     container_group: str  # a group your account needs to run containers ("" if none)
+    # A folder of Python libraries that fine-tuning needs and the container lacks
+    # (peft), which the organizers fill once and every fine-tuning job puts on its
+    # Python path; "" if the container has them. {project} and {gateway_user} are filled in.
+    finetune_libraries: str
     # What to do when Slurm refuses the project's GPU partitions to your account: who
     # grants that access, and where ("" if every member has it).
     partition_access_hint: str

@@ -264,8 +264,8 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
     Models are downloaded once, on the login node, so that jobs start at once and never
     wait for a download. The download's progress is shown as it happens; an interrupted
     download is continued by running the command again. A model that needs a licence
-    accepted on Hugging Face also needs your Hugging Face token on LUMI, in
-    ~/.cache/huggingface/token (see docs/lumi.md).
+    accepted on Hugging Face also needs your Hugging Face token on the supercomputer, in
+    ~/.cache/huggingface/token there (docs/lumi.md, section 6; the same file on JURECA).
     """
     cluster = lumi.cluster
     folders = Folders.from_settings(settings, cluster)
@@ -387,6 +387,18 @@ def organizer_stop_folder(settings: Settings, cluster: Cluster = LUMI) -> str:
     return f"{cluster.folder(project, organizer)}/gagnvist/stop"
 
 
+def organizer_libraries_folder(settings: Settings, cluster: Cluster = LUMI) -> str:
+    """The organizers' folder of Python libraries for fine-tuning on ``cluster``: what
+    the container lacks (peft), installed there once by the organizers and put on the
+    Python path of every fine-tuning job; "" where the container has them (LUMI)."""
+    if not cluster.finetune_libraries:
+        return ""
+    account = settings.cluster(cluster.name)
+    project = _checked("project", account.project, cluster)
+    organizer = _checked("username", account.gateway_user)
+    return cluster.finetune_libraries.format(project=project, gateway_user=organizer)
+
+
 def start_server(lumi: Lumi, settings: Settings, request: ServerRequest) -> str:
     """Submit a job that serves a model with vLLM; return the job's id."""
     cluster = lumi.cluster
@@ -449,6 +461,10 @@ def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> 
         raise LumiError(f"the LoRA rank is 8, 16, 32 or 64, not {request.rank}")
     model_path = _model_path(folders, request.model)
     run_folder = f"{folders.finetune}/{_checked('name', request.name)}"
+    libraries = organizer_libraries_folder(settings, cluster)
+    environment = ""
+    if libraries:
+        environment = f"export PYTHONPATH={libraries}${{PYTHONPATH:+:$PYTHONPATH}}  # peft"
     script = render_template(
         "finetune.sbatch",
         cluster,
@@ -465,6 +481,7 @@ def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> 
         learning_rate=repr(request.learning_rate),
         stop_folder=organizer_stop_folder(settings, cluster),
         finetune_script=_template_text("finetune_lora.py"),
+        finetune_environment=environment,
     )
     upload = _tar({"train.jsonl": request.data.read_bytes(), "finetune.sbatch": script.encode()})
     # The upload is unpacked in your private home folder first, and only the data is
@@ -478,6 +495,9 @@ def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> 
         'tar -xf - -C "$upload"',
         f'mv "$upload/train.jsonl" {run_folder}/train.jsonl',
     ]
+    if libraries:  # until the organizers have put the library there, nothing to submit
+        missing = f"if [ ! -d {libraries}/peft ]; then echo '@nolibraries {libraries}'; exit 0; fi"
+        checks.insert(0, missing)
     return _submit(lumi, checks, stdin=upload, script='"$upload/finetune.sbatch"')
 
 
@@ -647,6 +667,12 @@ def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") ->
         )
     if found := _tagged(output, "@exists"):
         raise LumiError(f"{found[0]} already exists: choose another name with --name")
+    if found := _tagged(output, "@nolibraries"):
+        raise LumiError(
+            f"fine-tuning is not available on {lumi.label} yet: its container lacks the "
+            f"training library (peft), and the organizers have not put it in {found[0]}. "
+            "Ask them; meanwhile `gagnvist lumi finetune` works on LUMI"
+        )
     job_ids = [line.split(";")[0] for line in _tagged(output, "@job")]
     if not job_ids or not job_ids[0].isdigit():
         raise LumiError(f"sbatch did not return a job id: {output[-300:]}")
