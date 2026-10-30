@@ -43,7 +43,8 @@ def main() -> None:
     if not tokenizer.chat_template:
         raise SystemExit(f"{args.model} has no chat template: fine-tune a chat (instruct) model")
     examples = read_examples(Path(args.data), tokenizer, args.max_length)
-    print(f"{len(examples)} conversations; training on {device}", flush=True)
+    where = "the GPU" if device == "cuda" else "the CPU (slow: no GPU was found)"
+    print(f"{len(examples)} conversations; training on {where}", flush=True)
 
     model = load_model(args.model, device)
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
