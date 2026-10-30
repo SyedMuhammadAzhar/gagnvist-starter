@@ -240,6 +240,15 @@ with their sizes; `gagnvist lumi delete model <name>` and `gagnvist lumi delete 
 serves it). The project's disk space is shared by everyone: delete what you no longer
 use. A deleted model can be downloaded again.
 
+**LUMI's web interface**, <https://www.lumi.csc.fi>, shows the same files in a browser:
+log in with your LUMI account, open *Files*, then `/scratch/project_...`, and you can look
+at, download and upload files, see your jobs under *Jobs*, and open a terminal on LUMI
+under *Tools*. Use it to look, and for small files such as an adapter you want to keep.
+Models are better fetched with `gagnvist lumi download`: an upload through the browser is
+slow (and at most 10 GB a file), and a model folder uploaded by hand lacks the
+`.download-complete` file that `download` writes, so `gagnvist lumi models` shows it as
+"download not finished" and `start` takes it only by its full path.
+
 ## 7. Fine-tuning
 
 You can teach a model your own examples with LoRA, which trains a small *adapter*
