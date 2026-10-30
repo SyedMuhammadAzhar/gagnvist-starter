@@ -25,10 +25,12 @@ from gagnvist.lumi.jobs import (
     ServerAddress,
     ServerRequest,
     check_account,
+    delete_stored,
     download_model,
     find_gateway,
     job_log,
     list_jobs,
+    list_stored,
     server_address,
     start_finetune,
     start_server,
@@ -85,6 +87,14 @@ def add_cluster_commands(
     )
     download.add_argument("--name", help=f"the folder name on {label} (default: the part after /)")
     download.set_defaults(command=_download)
+
+    models = sub.add_parser("models", help=f"list your models and fine-tuning runs on {label}")
+    models.set_defaults(command=_models)
+
+    delete = sub.add_parser("delete", help="delete one of your models or fine-tuning runs")
+    delete.add_argument("kind", choices=["model", "run"], help="what to delete")
+    delete.add_argument("name", help=f"its name, as `gagnvist {name} models` lists it")
+    delete.set_defaults(command=_delete)
 
     start = sub.add_parser("start", help="start a model server of your own (a Slurm job)")
     start.add_argument("kind", choices=["chat", "embeddings"], help="what the model is for")
@@ -302,8 +312,42 @@ def _download(args: argparse.Namespace, settings: Settings) -> int:
     lumi = _login(args, settings)
     name = args.name or args.repo.rsplit("/", 1)[-1]
     path = download_model(lumi, settings, args.repo, name)
+    cmd = lumi.cluster.name
     print(f"The model is in {path} on {lumi.label}.")
-    print(f"Serve it with:  gagnvist {lumi.cluster.name} start chat {name}   (or embeddings)")
+    print(f"Serve it:  gagnvist {cmd} start chat {name}         (a chat model)")
+    print(f"           gagnvist {cmd} start embeddings {name}   (an embedding model)")
+    return 0
+
+
+def _models(args: argparse.Namespace, settings: Settings) -> int:
+    lumi = _login(args, settings)
+    cmd = lumi.cluster.name
+    stored = list_stored(lumi, settings)
+    models = [s for s in stored if s.kind == "model"]
+    runs = [s for s in stored if s.kind == "run"]
+    if not models:
+        print(f"You have no models of your own on {lumi.label} (gagnvist {cmd} download REPO).")
+    else:
+        print(f"{'MODEL':<40} {'SIZE':>6}  STATE")
+        for model in models:
+            state = "complete" if model.complete else "download not finished"
+            print(f"{model.name[:40]:<40} {model.size:>6}  {state}")
+    if runs:
+        print()
+        print(f"{'FINE-TUNING RUN':<40} {'SIZE':>6}  ADAPTER")
+        for run in runs:
+            state = "ready" if run.complete else f"not there yet (its job: gagnvist {cmd} jobs)"
+            print(f"{run.name[:40]:<40} {run.size:>6}  {state}")
+    print()
+    print(f"Serve:   gagnvist {cmd} start chat MODEL  (or embeddings; --adapter RUN for a run)")
+    print(f"Delete:  gagnvist {cmd} delete model MODEL   or   gagnvist {cmd} delete run RUN")
+    return 0
+
+
+def _delete(args: argparse.Namespace, settings: Settings) -> int:
+    lumi = _login(args, settings)
+    size = delete_stored(lumi, settings, args.kind, args.name)
+    print(f"Deleted the {args.kind} {args.name} ({size}) from {lumi.label}.")
     return 0
 
 

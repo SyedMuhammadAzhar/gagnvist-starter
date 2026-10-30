@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -15,13 +16,17 @@ from gagnvist.lumi.jobs import (
     MAX_JOBS,
     FinetuneRequest,
     ServerRequest,
+    Stored,
     _checked,
     _tar,
     check_account,
+    delete_stored,
     download_model,
     find_gateway,
     job_log,
     list_jobs,
+    list_stored,
+    organizer_stop_folder,
     render_template,
     server_address,
     start_finetune,
@@ -32,6 +37,7 @@ from gagnvist.lumi.jobs import (
 pytestmark = needs_posix
 
 LOG_OPTION = "--output=" + "{home}/.gagnvist/logs/%x-%j.log"
+STOP_FOLDER = f"/scratch/{PROJECT}/{ORGANIZER}/gagnvist/stop"
 
 
 def test_check_account_reports_project_container_and_gateway(fake_lumi: FakeLumi) -> None:
@@ -76,6 +82,46 @@ def test_an_interrupted_download_is_continued(
     printed = capfd.readouterr().out
     assert "Already downloaded" not in printed and "Downloaded" in printed
     assert fake_lumi.mine("models", "qwen7", ".download-complete").exists()
+
+
+def test_the_older_weight_format_is_left_out_when_the_newer_one_is_there(tmp_path: Path) -> None:
+    """The download script, run with a stand-in for huggingface_hub that lists whatever
+    files FAKE_REPO_FILES names and writes down what it is asked to download."""
+    stub = tmp_path / "stub" / "huggingface_hub"
+    stub.mkdir(parents=True)
+    (stub / "__init__.py").write_text(
+        "import json, os\n"
+        "def list_repo_files(repo_id):\n"
+        "    return os.environ['FAKE_REPO_FILES'].split()\n"
+        "def snapshot_download(**kwargs):\n"
+        "    with open(os.environ['FAKE_DOWNLOAD_RECORD'], 'w') as f:\n"
+        "        json.dump(kwargs, f)\n",
+        encoding="utf-8",
+    )
+    record = tmp_path / "record.json"
+
+    def skipped(*files: str) -> list[str]:
+        env = {
+            **os.environ,
+            "PYTHONPATH": str(stub.parent),
+            "FAKE_REPO_FILES": " ".join(files),
+            "FAKE_DOWNLOAD_RECORD": str(record),
+        }
+        subprocess.run(
+            [sys.executable, "-c", jobs._DOWNLOAD, "org/model", str(tmp_path / "m")],
+            env=env,
+            check=True,
+        )
+        asked = json.loads(record.read_text(encoding="utf-8"))
+        assert (asked["repo_id"], asked["local_dir"]) == ("org/model", str(tmp_path / "m"))
+        patterns: list[str] = asked["ignore_patterns"]
+        return patterns
+
+    both = skipped("config.json", "model.safetensors", "pytorch_model.bin", "onnx/model.onnx")
+    assert "*.bin" in both and "*.pt" in both and "onnx/*" in both
+    older_only = skipped("config.json", "pytorch_model.bin", "onnx/model.onnx")
+    assert "*.bin" not in older_only and "*.pt" not in older_only and "onnx/*" in older_only
+    assert skipped("config.json", "sub/model.safetensors", "pytorch_model.bin") == older_only
 
 
 def test_your_folders_are_made_writable_by_you_only(fake_lumi: FakeLumi) -> None:
@@ -127,6 +173,7 @@ def test_a_chat_server_job_is_submitted_with_the_right_resources(fake_lumi: Fake
     assert f"singularity run {CONTAINER} vllm serve" in script
     assert "class Gatekeeper" in script  # the gatekeeper travels inside the job script
     assert "--api-key" not in script
+    assert f'stop_file="{STOP_FOLDER}/$SLURM_JOB_ID"' in script  # the organizers' way to end it
     home = str(fake_lumi.home)
     assert fake_lumi.sbatch_options(job) == ["--parsable", LOG_OPTION.format(home=home)]
     assert {job["id"]: job["state"] for job in fake_lumi.jobs()} == {job: "PENDING"}
@@ -174,6 +221,81 @@ def test_no_more_than_the_allowed_number_of_jobs(fake_lumi: FakeLumi) -> None:
     fake_lumi.add_job("200", "other-work")  # jobs that are not gagnvist's do not count
     with pytest.raises(LumiError, match=f"already have {MAX_JOBS} gagnvist jobs"):
         start_server(fake_lumi.lumi, fake_lumi.settings, ServerRequest("chat", "qwen7"))
+
+
+def test_a_job_that_is_ending_no_longer_counts(fake_lumi: FakeLumi) -> None:
+    fake_lumi.add_model("qwen7")
+    for number in range(MAX_JOBS - 1):
+        fake_lumi.add_job(str(100 + number), "gagnvist-chat")
+    fake_lumi.add_job("150", "gagnvist-embeddings", state="COMPLETING")  # just stopped
+    job = start_server(fake_lumi.lumi, fake_lumi.settings, ServerRequest("chat", "qwen7"))
+    assert job in {j["id"] for j in fake_lumi.jobs()}
+    fake_lumi.add_job("160", "gagnvist-finetune", state="PENDING")  # waiting ones do count
+    with pytest.raises(LumiError, match="already have"):
+        start_server(fake_lumi.lumi, fake_lumi.settings, ServerRequest("chat", "qwen7"))
+
+
+def test_models_and_runs_are_listed_with_their_sizes(fake_lumi: FakeLumi) -> None:
+    assert list_stored(fake_lumi.lumi, fake_lumi.settings) == []
+    fake_lumi.add_model("qwen7")
+    fake_lumi.add_model("half", complete=False)
+    adapter = fake_lumi.mine("finetune", "run-1", "adapter")
+    adapter.mkdir(parents=True)
+    (adapter / "adapter_config.json").write_text("{}", encoding="utf-8")
+    fake_lumi.mine("finetune", "run-2").mkdir()
+    stored = list_stored(fake_lumi.lumi, fake_lumi.settings)
+    assert [(s.kind, s.name, s.complete) for s in stored] == [
+        ("model", "half", False),
+        ("model", "qwen7", True),
+        ("run", "run-1", True),
+        ("run", "run-2", False),
+    ]
+    assert all(isinstance(s, Stored) and s.size and " " not in s.size for s in stored)
+
+
+def test_a_model_or_run_of_yours_can_be_deleted(fake_lumi: FakeLumi) -> None:
+    fake_lumi.add_model("qwen7")
+    run = fake_lumi.mine("finetune", "run-1")
+    run.mkdir(parents=True)
+    (run / "train.jsonl").write_text("{}\n", encoding="utf-8")
+    assert delete_stored(fake_lumi.lumi, fake_lumi.settings, "model", "qwen7")
+    assert not fake_lumi.mine("models", "qwen7").exists()
+    assert delete_stored(fake_lumi.lumi, fake_lumi.settings, "run", "run-1")
+    assert not run.exists()
+    with pytest.raises(LumiError, match="no model 'qwen7'"):
+        delete_stored(fake_lumi.lumi, fake_lumi.settings, "model", "qwen7")
+    with pytest.raises(LumiError, match="not a valid name"):
+        delete_stored(fake_lumi.lumi, fake_lumi.settings, "model", "../../elsewhere")
+    with pytest.raises(LumiError, match="not 'folder'"):
+        delete_stored(fake_lumi.lumi, fake_lumi.settings, "folder", "qwen7")
+
+
+def test_a_model_a_running_server_serves_is_not_deleted(fake_lumi: FakeLumi) -> None:
+    fake_lumi.add_model("qwen7")
+    fake_lumi.add_job("501", "gagnvist-chat")
+    fake_lumi.write_address("501", kind="chat", model="qwen7", node="nid005001", port=1, key="k")
+    with pytest.raises(LumiError, match="job 501 serves 'qwen7'"):
+        delete_stored(fake_lumi.lumi, fake_lumi.settings, "model", "qwen7")
+    assert fake_lumi.mine("models", "qwen7", "config.json").exists()
+    stop_job(fake_lumi.lumi, "501")
+    fake_lumi.write_address("502", kind="chat", model="qwen7", node="nid005001", port=1, key="k")
+    assert delete_stored(fake_lumi.lumi, fake_lumi.settings, "model", "qwen7")  # 502 has ended
+    assert not fake_lumi.mine("models", "qwen7").exists()
+
+
+def test_a_folder_that_is_not_yours_is_not_deleted(fake_lumi: FakeLumi, tmp_path: Path) -> None:
+    elsewhere = tmp_path / "someone-elses-folder"
+    elsewhere.mkdir()
+    (elsewhere / "config.json").write_text("{}", encoding="utf-8")
+    fake_lumi.mine("models").mkdir(parents=True)
+    fake_lumi.mine("models", "linked").symlink_to(elsewhere)
+    with pytest.raises(LumiError, match="not a folder of yours"):
+        delete_stored(fake_lumi.lumi, fake_lumi.settings, "model", "linked")
+    assert (elsewhere / "config.json").exists()
+
+
+def test_the_organizers_stop_folder_is_in_their_part_of_the_project(fake_lumi: FakeLumi) -> None:
+    assert organizer_stop_folder(fake_lumi.settings) == STOP_FOLDER
 
 
 @pytest.mark.parametrize(
@@ -315,6 +437,7 @@ def test_finetuning_uploads_the_data_and_carries_the_script_in_the_job(
     assert "#SBATCH --job-name=gagnvist-finetune" in script
     assert "--epochs 2 --rank 32 --learning-rate 0.0002" in script
     assert '"""Fine-tune a chat model with LoRA' in script
+    assert f'stop_file="{STOP_FOLDER}/$SLURM_JOB_ID"' in script
     assert not list((fake_lumi.home / ".gagnvist").glob("upload.*"))  # the upload is cleaned up
     with pytest.raises(LumiError, match="already exists"):
         start_finetune(fake_lumi.lumi, fake_lumi.settings, request)
@@ -326,12 +449,13 @@ def test_every_template_renders_completely_and_is_valid_bash() -> None:
             job_name="gagnvist-chat", kind="chat", project=PROJECT, partition="small-g",
             gpus="1", cpus="7", hours="4", container=CONTAINER, model_path="/m",
             served_name="m", request_name="m", extra_arguments="--max-model-len 8192",
-            key_proxy="print('gatekeeper')",
+            stop_folder=STOP_FOLDER, key_proxy="print('gatekeeper')",
         ),
         "finetune.sbatch": dict(
             project=PROJECT, partition="small-g", cpus="7", hours="2", container=CONTAINER,
             model_path="/m", run_folder="/r", run_name="r", epochs="1", rank="16",
-            learning_rate="0.0002", finetune_script="print('training')",
+            learning_rate="0.0002", stop_folder=STOP_FOLDER,
+            finetune_script="print('training')",
         ),
     }  # fmt: skip
     for name, given in values.items():

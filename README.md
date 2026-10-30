@@ -133,7 +133,7 @@ detail.
 | `gagnvist try-models` | send one small request to each model |
 | `gagnvist build-cards` | write every table's card, in both languages, into `cards/` (they come with the repository; `--replace` writes them again) |
 | `gagnvist build-vectors` | embed the text of every card in `cards/` into a new vector index |
-| `gagnvist lumi ...` | the tunnel to the shared models, and models of your own: see [docs/lumi.md](docs/lumi.md) |
+| `gagnvist lumi ...` | the tunnel to the shared models, and models of your own (download, start, stop, fine-tune, list, delete): see [docs/lumi.md](docs/lumi.md), and [docs/own-models.md](docs/own-models.md) for a walk-through |
 | `gagnvist jureca ...` | the same on JURECA, the second supercomputer: see [docs/jureca.md](docs/jureca.md) |
 
 Every command has `--help`. The commands that use the models (`ask`, `evaluate`,
@@ -165,7 +165,7 @@ Where to look first:
 | which table is found | the cards, the embedding model, or the search itself | [cards/README.md](cards/README.md), [docs/re-embedding.md](docs/re-embedding.md), `answering/find_tables.py` |
 | which numbers are chosen | the prompt, or how categories are shown | `models/prompts.py`, `answering/choose_categories.py` |
 | how the answer is written | the prompt | `models/prompts.py`, `answering/write_answer.py` |
-| the language model | a bigger or different model, or fine-tuning | [docs/lumi.md](docs/lumi.md) |
+| the language model | a bigger or different model, or fine-tuning | [docs/own-models.md](docs/own-models.md), [docs/lumi.md](docs/lumi.md) |
 
 [docs/how-it-works.md](docs/how-it-works.md) lists known weak spots of the starter
 kit, each a good place to begin. [docs/pxweb.md](docs/pxweb.md) explains how

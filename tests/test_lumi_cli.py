@@ -70,6 +70,28 @@ def test_start_jobs_and_stop_from_the_command_line(
 
 
 @needs_posix
+def test_models_are_listed_and_deleted_from_the_command_line(
+    fake_lumi: FakeLumi, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = str(fake_lumi.config)
+    assert main(["--config", config, "lumi", "models"]) == 0
+    assert "no models of your own" in capsys.readouterr().out
+    fake_lumi.add_model("qwen7")
+    fake_lumi.add_model("half", complete=False)
+    assert main(["--config", config, "lumi", "models"]) == 0
+    printed = capsys.readouterr().out
+    assert "qwen7" in printed and "complete" in printed and "download not finished" in printed
+    assert "FINE-TUNING RUN" not in printed  # there are none
+
+    assert main(["--config", config, "lumi", "delete", "model", "half"]) == 0
+    assert "Deleted the model half (" in capsys.readouterr().out
+    assert not fake_lumi.mine("models", "half").exists()
+    assert fake_lumi.mine("models", "qwen7", "config.json").exists()
+    assert main(["--config", config, "lumi", "delete", "run", "half"]) == 1
+    assert "no run 'half'" in capsys.readouterr().err
+
+
+@needs_posix
 def test_check_reports_a_ready_account(
     fake_lumi: FakeLumi, capsys: pytest.CaptureFixture[str]
 ) -> None:

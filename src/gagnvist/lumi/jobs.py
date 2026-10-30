@@ -46,6 +46,10 @@ MAX_HOURS = LUMI.partition_hours[LUMI.partitions[0]]  # hours per job
 PARTITIONS = LUMI.partitions  # dev-g starts sooner but allows at most 3 hours
 
 JOB_NAMES = ("gagnvist-chat", "gagnvist-embeddings", "gagnvist-finetune")
+# The states of a job that holds GPUs, or waits for them. A job that is ending
+# (COMPLETING, for up to a minute after `stop`) or has ended does not count towards the
+# limit, so a job you stopped can be replaced at once.
+COUNTED_STATES = "PENDING,CONFIGURING,RUNNING,SUSPENDED"
 CPUS_PER_GPU = LUMI.cpus_per_gpu  # a GPU chip comes with up to 8 cores for the same price
 LOGS = "$HOME/.gagnvist/logs"  # as written in the scripts, where the shell expands $HOME
 _SLURM_SILENT = "Slurm, {label}'s job system, did not answer; try again in a minute"
@@ -55,6 +59,21 @@ _NOT_DOWNLOADED = [
     "original/*", "*.pth", "*.gguf", "onnx/*", "*.onnx", "openvino/*", "*.msgpack", "*.h5",
     "flax_model*", "tf_model*", "rust_model*", "coreml/*",
 ]  # fmt: skip
+# The weights in PyTorch's older format: not needed either when the repository also has
+# them as safetensors files, which vLLM prefers. (Many repositories ship both; the older
+# format alone would double the download of a small model.)
+_OLDER_WEIGHTS = ["*.bin", "*.pt"]
+# The download itself, run by Python in the container on a login node: the list of the
+# repository's files first, to know which weights to leave out.
+_DOWNLOAD = f"""
+import sys
+from huggingface_hub import list_repo_files, snapshot_download
+repo, target = sys.argv[1], sys.argv[2]
+skip = {_NOT_DOWNLOADED!r}
+if any(name.endswith('.safetensors') and '/' not in name for name in list_repo_files(repo)):
+    skip += {_OLDER_WEIGHTS!r}
+snapshot_download(repo_id=repo, local_dir=target, ignore_patterns=skip)
+"""
 
 # The same on every supercomputer; a project name and a full path are checked against
 # the supercomputer's own pattern (see _checked).
@@ -133,6 +152,16 @@ class Job:
     node: str  # where it runs; empty while it waits
     time_left: str
     ready: bool  # a model server that has loaded its model and answers
+
+
+@dataclass(frozen=True)
+class Stored:
+    """A model, or a fine-tuning run, in your folder on the supercomputer."""
+
+    kind: str  # "model" or "run"
+    name: str
+    size: str  # as `du -h` shows it: 954M, 15G
+    complete: bool  # a model: its download finished; a run: its adapter is there
 
 
 @dataclass(frozen=True)
@@ -243,11 +272,6 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
     repo = _checked("repo", repo)
     target = f"{folders.models}/{_checked('name', name)}"
     container = _checked("container", settings.cluster(cluster.name).container)
-    download = (
-        "import sys; from huggingface_hub import snapshot_download; "
-        "snapshot_download(repo_id=sys.argv[1], local_dir=sys.argv[2], "
-        f"ignore_patterns={_NOT_DOWNLOADED!r})"
-    )
     group = cluster.container_group  # the download runs in the container too
     group_check = (
         f'if ! id -Gn | grep -qw {group}; then echo "your account is not in the group '
@@ -264,13 +288,103 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
         {cluster.login_modules}
         set -euo pipefail
         export HF_HUB_CACHE={folders.cache}/huggingface  # not in your small home folder
-        {cluster.login_container_runtime} {container} python3 -c "{download}" {repo} {target}
+        {cluster.login_container_runtime} {container} python3 -c "{_DOWNLOAD}" {repo} {target}
         touch {target}/.download-complete
         echo "Downloaded {repo} to {target}"
         """,
         show_output=True,
     )
     return target
+
+
+def list_stored(lumi: Lumi, settings: Settings) -> list[Stored]:
+    """Your models and fine-tuning runs on the supercomputer, with their sizes, models
+    first."""
+    folders = Folders.from_settings(settings, lumi.cluster)
+    output = lumi.run(
+        f"""
+        umask 022
+        {folders.check(folders.models, folders.finetune)}
+        shopt -s nullglob
+        describe() {{  # kind, folder, the file that is there once the folder is complete
+            if [ -e "$2/$3" ]; then state=complete; else state=incomplete; fi
+            echo "@$1 $(du -sh "$2" | cut -f1)|$state|$(basename "$2")"
+        }}
+        for folder in {folders.models}/*/; do
+            describe model "${{folder%/}}" .download-complete
+        done
+        for folder in {folders.finetune}/*/; do
+            describe run "${{folder%/}}" adapter/adapter_config.json
+        done
+        """
+    )
+    stored = []
+    for kind in ("model", "run"):
+        for line in _tagged(output, f"@{kind}"):
+            size, state, name = line.split("|", 2)
+            stored.append(Stored(kind, name, size.strip(), state == "complete"))
+    return stored
+
+
+def delete_stored(lumi: Lumi, settings: Settings, kind: str, name: str) -> str:
+    """Delete one of your models (``kind`` "model") or fine-tuning runs ("run") from the
+    supercomputer; return the size that was freed. Refused while a running server of
+    yours serves it."""
+    folders = Folders.from_settings(settings, lumi.cluster)
+    if kind not in ("model", "run"):
+        raise LumiError(f"delete a model or a run, not {kind!r}")
+    parent = folders.models if kind == "model" else folders.finetune
+    target = f"{parent}/{_checked('name', name)}"
+    output = lumi.run(
+        f"""
+        {folders.check(parent)}
+        shopt -s nullglob
+        if [ ! -e {target} ]; then echo "@missing {target}"; exit 0; fi
+        if [ -L {target} ] || [ ! -d {target} ] || [ ! -O {target} ]; then
+            echo "@not-yours {target}"; exit 0
+        fi
+        for address in ~/.gagnvist/jobs/*.json; do
+            job=$(basename "$address" .json)
+            if grep -qF '"model": "{name}"' "$address" \\
+                    && squeue --me -h -j "$job" -o %i 2>/dev/null | grep -q .; then
+                echo "@served $job"; exit 0
+            fi
+        done
+        size=$(du -sh {target} | cut -f1)
+        rm -rf {target}
+        echo "@deleted $size"
+        """
+    )
+    if found := _tagged(output, "@missing"):
+        raise LumiError(
+            f"there is no {kind} {name!r} on {lumi.label} "
+            f"(see: gagnvist {lumi.cluster.name} models)"
+        )
+    if found := _tagged(output, "@not-yours"):
+        raise LumiError(f"{found[0]} is not a folder of yours: please tell the organizers")
+    if found := _tagged(output, "@served"):
+        raise LumiError(
+            f"your job {found[0]} serves {name!r}: stop it first "
+            f"(gagnvist {lumi.cluster.name} stop {found[0]})"
+        )
+    sizes = _tagged(output, "@deleted")
+    if not sizes:
+        raise LumiError(f"{target} was not deleted: {output[-300:]}")
+    return sizes[0].strip()
+
+
+def organizer_stop_folder(settings: Settings, cluster: Cluster = LUMI) -> str:
+    """The organizers' folder of stop files on ``cluster``.
+
+    Slurm lets only a job's owner cancel it, so a gagnvist job also ends itself when a
+    file named after its job id appears in this folder (see the job templates). Only the
+    organizer named in gagnvist.toml can create files there; every member of the project
+    can see them.
+    """
+    account = settings.cluster(cluster.name)
+    project = _checked("project", account.project, cluster)
+    organizer = _checked("username", account.gateway_user)
+    return f"{cluster.folder(project, organizer)}/gagnvist/stop"
 
 
 def start_server(lumi: Lumi, settings: Settings, request: ServerRequest) -> str:
@@ -315,6 +429,7 @@ def start_server(lumi: Lumi, settings: Settings, request: ServerRequest) -> str:
         served_name=served_name,
         request_name=request_name,
         extra_arguments=" ".join(extra),
+        stop_folder=organizer_stop_folder(settings, cluster),
         key_proxy=_template_text("key_proxy.py"),
     )
     return _submit(lumi, checks, stdin=script.encode())  # sbatch reads the script itself
@@ -348,6 +463,7 @@ def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> 
         epochs=str(request.epochs),
         rank=str(request.rank),
         learning_rate=repr(request.learning_rate),
+        stop_folder=organizer_stop_folder(settings, cluster),
         finetune_script=_template_text("finetune_lora.py"),
     )
     upload = _tar({"train.jsonl": request.data.read_bytes(), "finetune.sbatch": script.encode()})
@@ -488,7 +604,8 @@ def render_template(name: str, cluster: Cluster = LUMI, **values: str) -> str:
 
 def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") -> str:
     """Run ``checks``, then submit the job, unless you already have as many jobs as
-    the supercomputer's profile allows.
+    the supercomputer's profile allows (running or waiting; a job that is ending no
+    longer counts).
 
     The job script is ``script`` (a path there that ``checks`` put there), or else
     what ``stdin`` holds. The job's log goes to your home folder.
@@ -500,7 +617,7 @@ def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") ->
         f"""
         set -euo pipefail
         umask 022
-        jobs=$(squeue --me -h -n {names} -o %i | wc -l | tr -d ' ')
+        jobs=$(squeue --me -h -n {names} -t {COUNTED_STATES} -o %i | wc -l | tr -d ' ')
         if [ "$jobs" -ge {max_jobs} ]; then echo "@too-many $jobs"; exit 0; fi
         mkdir -p {LOGS} ~/.gagnvist/jobs
         chmod 700 ~/.gagnvist

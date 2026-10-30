@@ -11,6 +11,7 @@ from conftest import write_settings
 from fake_lumi import (
     JURECA_CONTAINER,
     JURECA_PROJECT,
+    ORGANIZER,
     PROJECT,
     TEAM_KEY,
     USER,
@@ -31,6 +32,7 @@ from gagnvist.lumi.jobs import (
     _template_text,
     check_account,
     download_model,
+    organizer_stop_folder,
     render_template,
     start_finetune,
     start_server,
@@ -364,6 +366,7 @@ def _jureca_serve_script(model_path: str) -> str:
         request_name="qwen7",
         extra_arguments="--max-model-len 8192 --gpu-memory-utilization 0.9",
         key_proxy=_template_text("key_proxy.py"),
+        stop_folder=f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/stop",
     )
 
 
@@ -385,12 +388,22 @@ def test_the_job_scripts_render_for_jureca_and_are_valid_bash() -> None:
         rank="16",
         learning_rate="0.0002",
         finetune_script="print('training')",
+        stop_folder=f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/stop",
     )
     for script in (serve, finetune):
         assert "{{" not in script and "module purge" in script
         assert "Local-LAIF" not in script and "MIOPEN" not in script
         subprocess.run(["bash", "-n"], input=script.encode(), check=True)
     assert "#SBATCH --gres=gpu:1" in serve and "#SBATCH --gres=gpu:1" in finetune
+
+
+def test_the_organizer_stop_folder_is_in_the_project_folder_on_jureca(
+    fake_lumi: FakeLumi,
+) -> None:
+    assert (
+        organizer_stop_folder(fake_lumi.settings, JURECA)
+        == f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/stop"
+    )
 
 
 @needs_posix

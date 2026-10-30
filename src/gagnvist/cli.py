@@ -40,7 +40,9 @@ Command = Callable[[argparse.Namespace, Settings], int]
 def main(argv: Sequence[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, io.TextIOWrapper):  # never crash on a character a console lacks
-            stream.reconfigure(errors="replace")
+            # line_buffering: every line shows at once, also when the output goes to a
+            # file or another program (a tunnel's "Connected" must not wait in a buffer)
+            stream.reconfigure(errors="replace", line_buffering=True)
     logging.basicConfig(level=logging.WARNING, format="%(message)s")
     logging.getLogger("gagnvist").setLevel(logging.INFO)  # progress messages, not httpx's
     parser = _build_parser()

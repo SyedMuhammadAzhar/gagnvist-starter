@@ -107,6 +107,9 @@ elif command[0] in ("python", "python3") and command[1].endswith("key_proxy.py")
 elif command[0] in ("python", "python3") and command[1].endswith("finetune_lora.py"):
     with open(command[1], encoding="utf-8") as f:
         record("finetune-call.json", script=f.read())
+    if os.environ.get("FAKE_SLOW_TRAINING"):  # a training that takes long
+        import time
+        time.sleep(60)
     output = command[command.index("--output") + 1]
     os.makedirs(output, exist_ok=True)
     open(os.path.join(output, "adapter_config.json"), "w", encoding="utf-8").close()
@@ -147,7 +150,7 @@ for job in load():
     if (args.me and job["user"] != os.environ["FAKE_USER"]) \\
             or (args.u and job["user"] != args.u) \\
             or (args.n and job["name"] not in args.n.split(",")) \\
-            or (args.t and job["state"] != args.t) \\
+            or (args.t and job["state"] not in args.t.upper().split(",")) \\
             or (args.j and job["id"] != args.j):
         continue
     line = args.o or "%i %j %T"

@@ -51,6 +51,7 @@ def serve_script(tmp_path: Path, name: str) -> Path:
             served_name=name,
             request_name=name,
             extra_arguments="--max-model-len 8192 --gpu-memory-utilization 0.9",
+            stop_folder=str(tmp_path / "stop"),
             key_proxy=_template_text("key_proxy.py"),
         ),
         encoding="utf-8",
@@ -163,6 +164,18 @@ def test_stopping_the_job_removes_its_address_and_working_files(
     assert not socket_folder.exists()
 
 
+def test_the_organizers_stop_file_ends_the_server_job(
+    running_server: tuple[subprocess.Popen[bytes], dict[str, object], Path], tmp_path: Path
+) -> None:
+    process, _, address_file = running_server
+    (tmp_path / "stop").mkdir()
+    (tmp_path / "stop" / JOB_ID).touch()  # what `gagnvist-organizer stop-job` does
+    assert process.wait(timeout=30) == 0
+    assert process.stdout is not None
+    assert b"The organizers stopped this job." in process.stdout.read()
+    assert not address_file.exists()
+
+
 def test_a_server_that_fails_to_start_ends_the_job_without_an_address(
     tmp_path: Path, fake_programs: Path
 ) -> None:
@@ -181,9 +194,7 @@ def test_a_server_that_fails_to_start_ends_the_job_without_an_address(
     assert not (tmp_path / "home" / ".gagnvist" / "jobs" / f"{JOB_ID}.json").exists()
 
 
-def test_the_finetune_script_runs_its_own_copy_of_the_training_script(
-    tmp_path: Path, fake_programs: Path
-) -> None:
+def finetune_script(tmp_path: Path) -> Path:
     run = tmp_path / "run"
     run.mkdir()
     (run / "train.jsonl").write_text("{}\n", encoding="utf-8")
@@ -202,10 +213,19 @@ def test_the_finetune_script_runs_its_own_copy_of_the_training_script(
             epochs="3",
             rank="16",
             learning_rate="0.0002",
+            stop_folder=str(tmp_path / "stop"),
             finetune_script=_template_text("finetune_lora.py"),
         ),
         encoding="utf-8",
     )
+    return script
+
+
+def test_the_finetune_script_runs_its_own_copy_of_the_training_script(
+    tmp_path: Path, fake_programs: Path
+) -> None:
+    script = finetune_script(tmp_path)
+    run = tmp_path / "run"
     env = environment(tmp_path, fake_programs)
     completed = subprocess.run(["bash", str(script)], env=env, capture_output=True, timeout=60)
     assert completed.returncode == 0, completed.stderr.decode()
@@ -230,6 +250,20 @@ def test_the_finetune_script_runs_its_own_copy_of_the_training_script(
     ]
     assert (run / "adapter" / "adapter_config.json").exists()
     assert b"Finished: the adapter is in" in completed.stdout
+
+
+def test_the_organizers_stop_file_ends_a_training_job(tmp_path: Path, fake_programs: Path) -> None:
+    script = finetune_script(tmp_path)
+    (tmp_path / "stop").mkdir()
+    (tmp_path / "stop" / JOB_ID).touch()
+    env = {**environment(tmp_path, fake_programs), "FAKE_SLOW_TRAINING": "1"}
+    started = time.monotonic()
+    completed = subprocess.run(["bash", str(script)], env=env, capture_output=True, timeout=60)
+    assert completed.returncode == 0, completed.stderr.decode()
+    assert time.monotonic() - started < 30  # not the 60 seconds the fake training takes
+    assert b"The organizers stopped this job." in completed.stderr
+    assert b"Finished" not in completed.stdout
+    assert not (tmp_path / "run" / "adapter").exists()
 
 
 @pytest.mark.parametrize("name", ["serve.sbatch", "finetune.sbatch"])
