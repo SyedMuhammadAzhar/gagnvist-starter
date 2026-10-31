@@ -3,8 +3,10 @@
 From nothing to your first answer, step by step: about 20 minutes, plus a download of
 about 300 MB. Do steps 1 to 6 before the hackathon if you can.
 
-**Have ready:** your LUMI username, the SSH key you use for LUMI, your team's key (from
-the organizers), and a GitHub account with access to this repository.
+**Have ready:** your JURECA username, the SSH key you registered for JURECA in JuDoor
+(see [docs/jureca.md, section 1](jureca.md#1-your-jureca-account): the key only works
+from the networks you listed with it), your team's key (from the organizers), and a
+GitHub account with access to this repository.
 
 Every command below goes into the **Terminal** app: press `Cmd+Space`, type
 `Terminal`, and press Enter. Copy each command, paste it, and press Enter.
@@ -14,7 +16,7 @@ Every command below goes into the **Terminal** app: press `Cmd+Space`, type
 - [3. Install it](#3-install-it)
 - [4. Fill in your settings](#4-fill-in-your-settings)
 - [5. Unpack the data](#5-unpack-the-data)
-- [6. Log in to LUMI once by hand](#6-log-in-to-lumi-once-by-hand)
+- [6. Log in to JURECA once by hand](#6-log-in-to-jureca-once-by-hand)
 - [7. Connect to the shared models](#7-connect-to-the-shared-models)
 - [8. Ask your first question](#8-ask-your-first-question)
 - [Every day after that](#every-day-after-that)
@@ -47,11 +49,12 @@ git --version
 
 First accept the invitation to the repository that GitHub sent you by e-mail (it
 expires after 7 days). Then clone it into your home folder, not into Desktop or Documents
-if iCloud syncs them: iCloud would upload the 5.7 GB of data.
+if iCloud syncs them: iCloud would upload the 5.7 GB of data. The Jülich edition of the
+starter kit is the `jureca` branch, which `-b jureca` picks:
 
 ```bash
 cd ~
-git clone https://github.com/SyedMuhammadAzhar/gagnvist-starter.git
+git clone -b jureca https://github.com/SyedMuhammadAzhar/gagnvist-starter.git
 cd gagnvist-starter
 ```
 
@@ -89,23 +92,19 @@ TextEdit may "correct" what you type), then save (`Cmd+S`) and close TextEdit. I
 prefer the Terminal, `nano .env` works too (save with `Ctrl+O`, Enter, then `Ctrl+X`):
 
 ```bash
-GAGNVIST_LUMI_USERNAME=your_lumi_username
-GAGNVIST_SSH_KEY=~/.ssh/id_ed25519_lumi
+GAGNVIST_JURECA_USERNAME=your_jureca_username
+GAGNVIST_JURECA_SSH_KEY=~/.ssh/id_ed25519_jureca
 GAGNVIST_TEAM_KEY=paste-your-team-key-here
 ```
 
 | Line | Put there |
 |---|---|
-| `GAGNVIST_LUMI_USERNAME` | your LUMI username, from the e-mail LUMI sent you |
-| `GAGNVIST_SSH_KEY` | the path to the SSH key you use for LUMI: the file **without** `.pub`. `ls ~/.ssh` lists your keys; yours may be called `id_ed25519_lumi`, `id_ed25519` or something else. |
+| `GAGNVIST_JURECA_USERNAME` | your JURECA username, as JuDoor shows it |
+| `GAGNVIST_JURECA_SSH_KEY` | the path to the SSH key you registered in JuDoor: the file **without** `.pub`. `ls ~/.ssh` lists your keys; yours may be called `id_ed25519_jureca`, `id_ed25519` or something else. |
 | `GAGNVIST_TEAM_KEY` | your team's key from the organizers: 48 letters and digits, copied exactly, without quote marks or spaces. Your teammate puts the same key in their own `.env`. |
 
 `.env` stays on your computer: git ignores it, so it is never committed or pushed.
 (Finder hides files whose names begin with a dot; `Cmd+Shift+.` shows them.)
-
-If the organizers say the shared models also run on JURECA, the second supercomputer, two more
-lines go here (`GAGNVIST_JURECA_USERNAME`, `GAGNVIST_JURECA_SSH_KEY`): see
-[docs/jureca.md](jureca.md#2-your-settings). LUMI alone is enough to start.
 
 ## 5. Unpack the data
 
@@ -118,34 +117,36 @@ gagnvist get-data
 gagnvist build-index
 ```
 
-## 6. Log in to LUMI once by hand
+## 6. Log in to JURECA once by hand
 
-So that your Mac learns LUMI's identity. Use your own key file and username (here and
-below, `~/.ssh/id_ed25519_lumi` stands for your key's file):
+So that your Mac learns JURECA's identity. Use your own key file and username (here and
+below, `~/.ssh/id_ed25519_jureca` stands for your key's file). `-4` connects over IPv4,
+the addresses your key is registered for:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_lumi your_lumi_username@lumi.csc.fi
+ssh -4 -i ~/.ssh/id_ed25519_jureca your_jureca_username@jureca.fz-juelich.de
 ```
 
-ssh shows LUMI's *fingerprint* and asks whether to trust it. Check that it is one of
-[LUMI's published fingerprints](https://docs.lumi-supercomputer.eu/firststeps/loggingin/):
+ssh shows JURECA's *fingerprint* and asks whether to trust it. Check that it is the one
+JuDoor shows next to the key upload form for JURECA; at the time of writing:
 
 | Key type | Fingerprint |
 |---|---|
-| ED25519 | `SHA256:qCFZThjRw8nf0CiZ9rU7b6Zirjq8slAIl5r0xWaVoD0` |
-| ECDSA | `SHA256:hY4mnRCYb8bRchTnVcFo7SqoHHHEsUh9Ym38F4sHN1Y` |
-| RSA | `SHA256:ypbqdMWtk9ZdXEROkeEpv+3PCEXWjPLGI79IXGHe9ac` |
+| ED25519 | `SHA256:IDGkpGi9hxyNBixHDLEXYjLeGLrfNIiuTpcVXu0Lzcc` |
+| ECDSA | `SHA256:uqstKzrRZlKMAEOrhy0cMUL7IL3VlqTyei+0mIZ5w5A` |
 
-Then type `yes`, enter your key's passphrase, and once you are logged in, type `exit`.
+Then type `yes`, enter your key's passphrase (and, if your JuDoor account uses
+multi-factor authentication, the code from your authenticator app), and once you are
+logged in, type `exit`.
 
-If you have logged in to LUMI from this Mac before, skip this step.
+If you have logged in to JURECA from this Mac before, skip this step.
 
 ## 7. Connect to the shared models
 
 First check that everything is in place:
 
 ```bash
-gagnvist lumi check
+gagnvist jureca check
 ```
 
 If your key has a passphrase, it first asks how long to remember it:
@@ -161,10 +162,10 @@ Type a time, such as `2d` for two days, press Enter, and type your passphrase
 once. Until that time is up, nothing asks for it again. (On a shared
 computer, choose a short time.)
 
-When it says **All set**, open the tunnel to LUMI, and **leave this window open**:
+When it says **All set**, open the tunnel to JURECA, and **leave this window open**:
 
 ```bash
-gagnvist lumi connect
+gagnvist jureca connect
 ```
 
 ## 8. Ask your first question
@@ -194,7 +195,7 @@ Two Terminal windows:
 # window 1: the tunnel; leave it open
 cd ~/gagnvist-starter
 source .venv/bin/activate
-gagnvist lumi connect
+gagnvist jureca connect
 ```
 
 ```bash
@@ -205,7 +206,7 @@ gagnvist ask "..."
 ```
 
 - Every new window needs `source .venv/bin/activate` again, or `gagnvist` is not found.
-- When the time you chose for your passphrase is up, `gagnvist lumi connect` asks again.
+- When the time you chose for your passphrase is up, `gagnvist jureca connect` asks again.
 - If your Mac sleeps, or the organizers restart the shared models, the tunnel
   reconnects by itself.
 - When the organizers announce an update: commit your own changes first (`git add -A`,
@@ -220,12 +221,13 @@ gagnvist ask "..."
 | `remote: Repository not found` (step 2) | Accept the invitation that GitHub e-mailed you (it expires after 7 days; ask the organizers for a new one). If git signs in as another GitHub account, delete the `github.com` entry in the *Keychain Access* app, then clone again. |
 | `xcrun: error: invalid active developer path` | Run `xcode-select --install`, and try again when it is done. |
 | `command not found: gagnvist` | Activate the environment in this window: `cd ~/gagnvist-starter` and `source .venv/bin/activate`. |
-| `ssh refuses to use ... because others may read it` / `UNPROTECTED PRIVATE KEY FILE` | `chmod 600 ~/.ssh/id_ed25519_lumi` (your key's file). |
-| `Permission denied (publickey)` (step 6) | Check the username and the key file. A key added in MyCSC in the last couple of hours may not have reached LUMI yet. |
+| `ssh refuses to use ... because others may read it` / `UNPROTECTED PRIVATE KEY FILE` | `chmod 600 ~/.ssh/id_ed25519_jureca` (your key's file). |
+| `Permission denied (publickey)` (step 6) | Check the username and the key file. Is the network you are on now in the key's `from=` clause in JuDoor ("what is my IP")? Did you type `-4`? A key added in JuDoor in the last 15 minutes may not work yet. |
 | `requires a different Python: 3.9.6 not in '>=3.11'` | `.venv` was made with the old Python: install Python from python.org (step 1), open a new Terminal window, then `cd ~/gagnvist-starter`, `rm -rf .venv`, and step 3 again. |
-| `LUMI did not accept the SSH key` | Check the username and key path in `.env`. A key added in MyCSC in the last couple of hours may not have reached LUMI yet. |
-| `Connection timed out` (step 6) | The network blocks ssh (port 22): try another one, such as your phone's hotspot. |
-| `port 8765 on this computer is already in use` | Add `GAGNVIST_LOCAL_PORT=8790` to `.env`. |
+| `JURECA did not accept the SSH key` | Check the username and key path in `.env`, and the network and the key's age, as for `Permission denied` above. |
+| `JURECA accepted your key, then asked for a one-time code` | Your JuDoor account uses multi-factor authentication: run `gagnvist jureca check` in a terminal and type the code from your authenticator app when it asks ([docs/jureca.md, section 3](jureca.md#3-log-in-once-by-hand)). |
+| `Connection timed out` (step 6) | The network blocks ssh (port 22): try another one, such as your phone's hotspot (and add its range to your key's `from=` clause). |
+| `port 8775 on this computer is already in use` | Add `GAGNVIST_JURECA_LOCAL_PORT=8790` to `.env`. |
 | `the shared models are not running right now` | Tell the organizers. |
 
-Anything else: the full list in [docs/lumi.md](lumi.md#9-troubleshooting).
+Anything else: the full list in [docs/jureca.md](jureca.md#10-troubleshooting).

@@ -3,8 +3,10 @@
 From nothing to your first answer, step by step: about 20 minutes, plus a download of
 about 300 MB. Do steps 1 to 7 before the hackathon if you can. Windows 10 or 11.
 
-**Have ready:** your LUMI username, the SSH key you use for LUMI, your team's key (from
-the organizers), and a GitHub account with access to this repository.
+**Have ready:** your JURECA username, the SSH key you registered for JURECA in JuDoor
+(see [docs/jureca.md, section 1](jureca.md#1-your-jureca-account): the key only works
+from the networks you listed with it), your team's key (from the organizers), and a
+GitHub account with access to this repository.
 
 Every command below goes into **PowerShell**: open the Start menu, type `PowerShell`,
 and click *Windows PowerShell*. Copy each command, paste it (right-click pastes), and
@@ -17,7 +19,7 @@ Command Prompt would need different ones.
 - [4. Install it](#4-install-it)
 - [5. Fill in your settings](#5-fill-in-your-settings)
 - [6. Unpack the data](#6-unpack-the-data)
-- [7. Log in to LUMI once by hand](#7-log-in-to-lumi-once-by-hand)
+- [7. Log in to JURECA once by hand](#7-log-in-to-jureca-once-by-hand)
 - [8. Connect to the shared models](#8-connect-to-the-shared-models)
 - [9. Ask your first question](#9-ask-your-first-question)
 - [Every day after that](#every-day-after-that)
@@ -90,11 +92,12 @@ time it connects.)
 First accept the invitation to the repository that GitHub sent you by e-mail (it
 expires after 7 days). Then clone it into a short folder that OneDrive does not sync (it
 often syncs Documents and Desktop, and would upload the 5.7 GB of data; long folder paths
-also break the data files):
+also break the data files). The Jülich edition of the starter kit is the `jureca`
+branch, which `-b jureca` picks:
 
 ```powershell
 cd C:\
-git clone https://github.com/SyedMuhammadAzhar/gagnvist-starter.git
+git clone -b jureca https://github.com/SyedMuhammadAzhar/gagnvist-starter.git
 cd C:\gagnvist-starter
 ```
 
@@ -133,22 +136,18 @@ Replace the three example values after the `=` signs, then save (`Ctrl+S`) and c
 Notepad:
 
 ```bash
-GAGNVIST_LUMI_USERNAME=your_lumi_username
-GAGNVIST_SSH_KEY=~/.ssh/id_ed25519_lumi
+GAGNVIST_JURECA_USERNAME=your_jureca_username
+GAGNVIST_JURECA_SSH_KEY=~/.ssh/id_ed25519_jureca
 GAGNVIST_TEAM_KEY=paste-your-team-key-here
 ```
 
 | Line | Put there |
 |---|---|
-| `GAGNVIST_LUMI_USERNAME` | your LUMI username, from the e-mail LUMI sent you |
-| `GAGNVIST_SSH_KEY` | the path to the SSH key you use for LUMI: the file **without** `.pub`, for example `C:\Users\you\.ssh\id_ed25519_lumi` or `~/.ssh/id_ed25519_lumi`. `dir $HOME\.ssh` lists your keys; yours may have another name. |
+| `GAGNVIST_JURECA_USERNAME` | your JURECA username, as JuDoor shows it |
+| `GAGNVIST_JURECA_SSH_KEY` | the path to the SSH key you registered in JuDoor: the file **without** `.pub`, for example `C:\Users\you\.ssh\id_ed25519_jureca` or `~/.ssh/id_ed25519_jureca`. `dir $HOME\.ssh` lists your keys; yours may have another name. |
 | `GAGNVIST_TEAM_KEY` | your team's key from the organizers: 48 letters and digits, copied exactly, without quote marks or spaces. Your teammate puts the same key in their own `.env`. |
 
 `.env` stays on your computer: git ignores it, so it is never committed or pushed.
-
-If the organizers say the shared models also run on JURECA, the second supercomputer, two more
-lines go here (`GAGNVIST_JURECA_USERNAME`, `GAGNVIST_JURECA_SSH_KEY`): see
-[docs/jureca.md](jureca.md#2-your-settings). LUMI alone is enough to start.
 
 A key made with PuTTY (a `.ppk` file) must first be converted: in PuTTYgen, load it and
 choose *Conversions*, *Export OpenSSH key*, and use the exported file.
@@ -164,35 +163,37 @@ gagnvist get-data
 gagnvist build-index
 ```
 
-## 7. Log in to LUMI once by hand
+## 7. Log in to JURECA once by hand
 
-So that your computer learns LUMI's identity. Use your own key file and username (here
-and below, `$HOME\.ssh\id_ed25519_lumi` stands for your key's file):
+So that your computer learns JURECA's identity. Use your own key file and username (here
+and below, `$HOME\.ssh\id_ed25519_jureca` stands for your key's file). `-4` connects
+over IPv4, the addresses your key is registered for:
 
 ```powershell
-ssh -i $HOME\.ssh\id_ed25519_lumi your_lumi_username@lumi.csc.fi
+ssh -4 -i $HOME\.ssh\id_ed25519_jureca your_jureca_username@jureca.fz-juelich.de
 ```
 
-ssh shows LUMI's *fingerprint* and asks whether to trust it. Check that it is one of
-[LUMI's published fingerprints](https://docs.lumi-supercomputer.eu/firststeps/loggingin/)
-(Windows 10 usually shows the ECDSA one):
+ssh shows JURECA's *fingerprint* and asks whether to trust it. Check that it is the one
+JuDoor shows next to the key upload form for JURECA (Windows 10 usually shows the ECDSA
+one); at the time of writing:
 
 | Key type | Fingerprint |
 |---|---|
-| ED25519 | `SHA256:qCFZThjRw8nf0CiZ9rU7b6Zirjq8slAIl5r0xWaVoD0` |
-| ECDSA | `SHA256:hY4mnRCYb8bRchTnVcFo7SqoHHHEsUh9Ym38F4sHN1Y` |
-| RSA | `SHA256:ypbqdMWtk9ZdXEROkeEpv+3PCEXWjPLGI79IXGHe9ac` |
+| ED25519 | `SHA256:IDGkpGi9hxyNBixHDLEXYjLeGLrfNIiuTpcVXu0Lzcc` |
+| ECDSA | `SHA256:uqstKzrRZlKMAEOrhy0cMUL7IL3VlqTyei+0mIZ5w5A` |
 
-Then type `yes`, enter your key's passphrase, and once you are logged in, type `exit`.
+Then type `yes`, enter your key's passphrase (and, if your JuDoor account uses
+multi-factor authentication, the code from your authenticator app), and once you are
+logged in, type `exit`.
 
-If you have logged in to LUMI from this computer before, skip this step.
+If you have logged in to JURECA from this computer before, skip this step.
 
 ## 8. Connect to the shared models
 
 First check that everything is in place:
 
 ```powershell
-gagnvist lumi check
+gagnvist jureca check
 ```
 
 If your key has a passphrase, it first offers to remember it:
@@ -204,12 +205,17 @@ The SSH agent can remember it until you remove it. Remember it? [Y/n]
 
 Press Enter, and type your passphrase once. Windows' agent then keeps the key, also
 after a restart, until you remove it: at the end of the hackathon, and always on a
-shared computer, run `ssh-add -d $HOME\.ssh\id_ed25519_lumi` (your key's file).
+shared computer, run `ssh-add -d $HOME\.ssh\id_ed25519_jureca` (your key's file).
 
-When it says **All set**, open the tunnel to LUMI, and **leave this window open**:
+If your JuDoor account uses multi-factor authentication, JURECA asks for the code from
+your authenticator app at every connection: for each `gagnvist jureca` command, and
+in the tunnel's window each time it reconnects. (Windows' ssh cannot keep one
+connection open for all of them, as the Mac's can.)
+
+When it says **All set**, open the tunnel to JURECA, and **leave this window open**:
 
 ```powershell
-gagnvist lumi connect
+gagnvist jureca connect
 ```
 
 ## 9. Ask your first question
@@ -239,7 +245,7 @@ Two PowerShell windows:
 # window 1: the tunnel; leave it open
 cd C:\gagnvist-starter
 .venv\Scripts\activate
-gagnvist lumi connect
+gagnvist jureca connect
 ```
 
 ```powershell
@@ -270,13 +276,14 @@ gagnvist ask "..."
 | `ssh` is not recognized / `the ssh program was not found` | Add *OpenSSH Client* under *Optional features* (step 1). |
 | `Windows' SSH agent ... is not running` | Start it once as administrator (step 2). |
 | `found .env.txt but no .env` | Rename the file to `.env` (step 5). |
-| `ssh refuses to use ... because others may read it` / `UNPROTECTED PRIVATE KEY FILE` | `icacls $HOME\.ssh\id_ed25519_lumi /inheritance:r /grant:r "$(whoami):R"` (your key's file). |
-| `Connection timed out` (step 7) | The network blocks ssh (port 22): try another one, such as your phone's hotspot. |
-| `Permission denied (publickey)` (step 7) | Check the username and the key file. A key added in MyCSC in the last couple of hours may not have reached LUMI yet. |
-| `LUMI did not accept the SSH key` | Check the username and key path in `.env`. A key added in MyCSC in the last couple of hours may not have reached LUMI yet. |
+| `ssh refuses to use ... because others may read it` / `UNPROTECTED PRIVATE KEY FILE` | `icacls $HOME\.ssh\id_ed25519_jureca /inheritance:r /grant:r "$(whoami):R"` (your key's file). |
+| `Connection timed out` (step 7) | The network blocks ssh (port 22): try another one, such as your phone's hotspot (and add its range to your key's `from=` clause). |
+| `Permission denied (publickey)` (step 7) | Check the username and the key file. Is the network you are on now in the key's `from=` clause in JuDoor ("what is my IP")? Did you type `-4`? A key added in JuDoor in the last 15 minutes may not work yet. |
+| `JURECA did not accept the SSH key` | Check the username and key path in `.env`, and the network and the key's age, as for `Permission denied` above. |
+| `JURECA accepted your key, then asked for a one-time code` | Your JuDoor account uses multi-factor authentication: run the command in a PowerShell window and type the code from your authenticator app when it asks ([docs/jureca.md, section 3](jureca.md#3-log-in-once-by-hand)). |
 | `too deep for Windows` | Clone the starter kit again into `C:\gagnvist-starter` and do steps 3 to 6 there. (A folder that is set up cannot simply be moved: its `.venv` remembers where it was.) |
-| `port 8765 ... is already in use` / `does not let programs use port` | Add `GAGNVIST_LOCAL_PORT=8790` to `.env`. |
+| `port 8775 ... is already in use` / `does not let programs use port` | Add `GAGNVIST_JURECA_LOCAL_PORT=8790` to `.env`. |
 | `the shared models are not running right now` | Tell the organizers. |
 | A window stops printing, or a command seems stuck, after you clicked in it | Clicking in a PowerShell window selects text and pauses the program: press `Esc` to let it go on. (Windows Terminal does not do this.) |
 
-Anything else: the full list in [docs/lumi.md](lumi.md#9-troubleshooting).
+Anything else: the full list in [docs/jureca.md](jureca.md#10-troubleshooting).
