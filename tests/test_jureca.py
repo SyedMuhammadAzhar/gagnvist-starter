@@ -282,6 +282,31 @@ def test_a_teammates_model_on_jureca_is_named_by_its_full_path(fake_jureca: Fake
 
 
 @needs_posix
+def test_jobs_on_jureca_give_their_srun_step_the_jobs_cpus(
+    fake_jureca: FakeLumi, tmp_path: Path
+) -> None:
+    """JURECA runs Slurm 25.05, where srun does not take --cpus-per-task over from the job:
+    without SRUN_CPUS_PER_TASK the step (vLLM, the training) would get one CPU."""
+    fake_jureca.add_model("qwen7")
+    data = tmp_path / "train.jsonl"
+    data.write_text(
+        '{"messages": [{"role": "user", "content": "Q"}, {"role": "assistant", "content": "A"}]}\n',
+        encoding="utf-8",
+    )
+    server = start_server(fake_jureca.lumi, fake_jureca.settings, ServerRequest("chat", "qwen7"))
+    training = start_finetune(
+        fake_jureca.lumi,
+        fake_jureca.settings,
+        FinetuneRequest(model="qwen7", data=data, name="run-1", hours=2),
+    )
+    for job in (server, training):
+        script = fake_jureca.submitted(job)
+        export = 'export SRUN_CPUS_PER_TASK="${SLURM_CPUS_PER_TASK:-1}"'
+        assert export in script
+        assert script.index(export) < script.index(f"srun {JURECA.container_runtime}")
+
+
+@needs_posix
 def test_finetuning_on_jureca_uses_one_gpu_of_a_node(fake_jureca: FakeLumi, tmp_path: Path) -> None:
     fake_jureca.add_model("qwen7")
     assert fake_jureca.organizer_libraries  # the organizers have installed peft there

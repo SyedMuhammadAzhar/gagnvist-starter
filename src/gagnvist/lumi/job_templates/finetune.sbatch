@@ -25,6 +25,9 @@
 
 {{modules}}
 set -euo pipefail
+# srun does not take --cpus-per-task over from the job (Slurm 22.05 and later), so the
+# step below would get one CPU instead of the job's; JSC's job script examples do this.
+export SRUN_CPUS_PER_TASK="${SLURM_CPUS_PER_TASK:-1}"
 
 # The adapter can be read by your teammates but changed by you only. The working files
 # stay on this node, in a folder that only you can open, and are removed at the end.
