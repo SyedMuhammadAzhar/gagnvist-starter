@@ -1,9 +1,9 @@
 """Talking to the language model and the embedding model.
 
-The shared models run on LUMI (or on JURECA) behind the organizers' gateway, which you
-reach through a private SSH tunnel (``gagnvist lumi connect``, ``gagnvist jureca
-connect``). The gateway speaks the API that OpenAI made popular and that vLLM and most
-model servers copy; models you start yourself (``gagnvist lumi start``) speak it too. So
+The shared models run on JURECA behind the organizers' gateway, which you reach through
+a private SSH tunnel (``gagnvist jureca connect``). The gateway speaks the API that
+OpenAI made popular and that vLLM and most model servers copy; models you start
+yourself (``gagnvist jureca start``) speak it too. So
 one client talks to either: only the address, the key and the model name differ, and
 the chat model and the embedding model may even live at different addresses ([models]
 in gagnvist.toml, or your own servers in .env).
@@ -22,6 +22,7 @@ from typing import Any
 import httpx
 import numpy as np
 
+from gagnvist.clusters import DEFAULT_CLUSTER
 from gagnvist.config import Settings, team_key_problem
 from gagnvist.search.vector_search import Vectors
 
@@ -62,7 +63,7 @@ class ModelClient:
         self.chat_endpoint = chat
         self.embedding_endpoint = embeddings
         # trust_env=False: requests (and their key) never go through a proxy set on this
-        # computer; the models are reached through your own tunnel to LUMI.
+        # computer; the models are reached through your own tunnel to the supercomputer.
         self._http = http or httpx.Client(timeout=timeout, trust_env=False)
         self._timeout = timeout
         self._sleep = sleep
@@ -76,7 +77,7 @@ class ModelClient:
         if not (models.chat_url and models.embeddings_url):
             settings.require_team_key()
         gateway = f"http://127.0.0.1:{settings.cluster().local_port}/v1"
-        team_key = settings.shared_services.team_key
+        team_key = settings.team_key
         return cls(
             chat=Endpoint(
                 models.chat_url or gateway,
@@ -199,9 +200,9 @@ class ModelClient:
             )
         except httpx.ConnectError:
             raise ModelError(
-                f"cannot reach the model server at {endpoint.url}: is the tunnel to LUMI "
-                "(or JURECA) open? (`gagnvist lumi connect`, `gagnvist jureca connect`, or "
-                "`... connect --job ...` for a server of your own)"
+                f"cannot reach the model server at {endpoint.url}: is the tunnel open? "
+                f"(`gagnvist {DEFAULT_CLUSTER} connect`, or `gagnvist {DEFAULT_CLUSTER} "
+                "connect --job ...` for a server of your own)"
             ) from None
         except httpx.TimeoutException:
             raise ModelError(
@@ -213,7 +214,7 @@ class ModelClient:
             raise ModelError(
                 f"the connection to {endpoint.url} broke off ({type(e).__name__}): the tunnel "
                 "may lead to a server that has stopped or moved. Stop the `connect` command "
-                "(`gagnvist lumi connect` or `gagnvist jureca connect`, Ctrl+C) and start it "
+                f"(`gagnvist {DEFAULT_CLUSTER} connect`, Ctrl+C) and start it "
                 "again; `... check` says whether the shared models are running"
             ) from None
         except UnicodeError:  # httpx sends only plain ASCII in headers

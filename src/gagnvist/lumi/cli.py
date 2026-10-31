@@ -1,11 +1,11 @@
-"""The ``gagnvist lumi`` and ``gagnvist jureca`` commands: tunnels to the shared models,
-and jobs of your own, on either supercomputer.
+"""The ``gagnvist jureca`` commands: tunnels to the shared models, and jobs of your own,
+on the supercomputer.
 
-Both have the same sub-commands (check, connect, download, start, finetune, jobs, log,
-stop), made by :func:`add_cluster_commands` from one supercomputer's profile (see
-:mod:`gagnvist.clusters`). Like the other commands, each one only reads the settings,
-calls the library (:mod:`gagnvist.lumi.jobs`, :mod:`gagnvist.lumi.tunnel`) and prints
-the outcome.
+The sub-commands (check, connect, download, start, finetune, jobs, log, stop) are made
+by :func:`add_cluster_commands` from the supercomputer's profile (see
+:mod:`gagnvist.clusters`); another supercomputer of this edition gets the same ones.
+Like the other commands, each one only reads the settings, calls the library
+(:mod:`gagnvist.lumi.jobs`, :mod:`gagnvist.lumi.tunnel`) and prints the outcome.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from gagnvist.clusters import JURECA, LUMI, Cluster
+from gagnvist.clusters import Cluster
 from gagnvist.config import Settings, team_key_problem
 from gagnvist.lumi.agent import remember_key
 from gagnvist.lumi.connection import Lumi, LumiError
@@ -40,20 +40,7 @@ from gagnvist.lumi.tunnel import hold_tunnel, try_key
 
 Command = Callable[[argparse.Namespace, Settings], int]
 
-# Ports on your computer for tunnels to servers of your own (the shared models use
-# [shared_services] local_port), so that a chat and an embedding server can be open at
-# once; JURECA's are in its profile, so that both supercomputers' can be open at once.
 MAX_TRAINING_FILE = 100_000_000  # bytes
-
-
-def add_lumi_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    """Add ``gagnvist lumi ...`` to the main command's sub-commands."""
-    add_cluster_commands(commands, LUMI)
-
-
-def add_jureca_commands(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    """Add ``gagnvist jureca ...``, the same commands for the second supercomputer."""
-    add_cluster_commands(commands, JURECA)
 
 
 def add_cluster_commands(
@@ -215,7 +202,7 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
             f"{lumi.cluster.name} download` and jobs of your own cannot run containers "
             f"there; the shared models work anyway. See {lumi.cluster.docs}."
         )
-    allowed = facts["partitions"].split()  # empty where Slurm lists no partitions (LUMI)
+    allowed = facts["partitions"].split()  # empty where Slurm lists no partitions
     if allowed and not any(partition in allowed for partition in lumi.cluster.partitions):
         print(
             f"  NOTE: your account cannot use the GPU partitions of {project} "
@@ -223,7 +210,7 @@ def _check(args: argparse.Namespace, settings: Settings) -> int:
             f"the shared models work anyway. {lumi.cluster.partition_access_hint} "
             f"See {lumi.cluster.docs}."
         )
-    key = settings.shared_services.team_key
+    key = settings.team_key
     key_problem = (
         "it is not filled in"
         if not key or key == "paste-your-team-key-here"
@@ -288,9 +275,7 @@ def _connect(args: argparse.Namespace, settings: Settings) -> int:
         def find_shared_models() -> tuple[str, int]:
             return find_gateway(lumi, settings), account.gateway_port
 
-        hold_tunnel(
-            lumi, port, find_shared_models, settings.shared_services.team_key, label=lumi.label
-        )
+        hold_tunnel(lumi, port, find_shared_models, settings.team_key, label=lumi.label)
     return 0
 
 

@@ -1,4 +1,4 @@
-"""Keeping a tunnel to a model server on LUMI or JURECA open until you press Ctrl+C.
+"""Keeping a tunnel to a model server on the supercomputer open until you press Ctrl+C.
 
 The tunnel ends on your computer at ``http://127.0.0.1:<port>/v1``, and only programs on
 your computer can use it. If the connection drops, for example when the laptop sleeps
@@ -21,12 +21,13 @@ from types import FrameType
 
 import httpx
 
+from gagnvist.clusters import DEFAULT
 from gagnvist.config import team_key_problem
 from gagnvist.lumi.connection import Lumi, LumiError
 
 RECONNECT_AFTER = 30  # seconds to wait before opening a dropped tunnel again
 CHECK_EVERY = 60  # seconds between checks that the server still answers
-CHECKS_BEFORE_LOOKUP = 2  # failed checks in a row before asking LUMI where the server is
+CHECKS_BEFORE_LOOKUP = 2  # failed checks in a row before asking where the server is now
 
 
 def hold_tunnel(
@@ -35,7 +36,7 @@ def hold_tunnel(
     find_server: Callable[[], tuple[str, int]],
     key: str,
     say: Callable[[str], None] = print,
-    label: str = "LUMI",
+    label: str = DEFAULT.label,
 ) -> None:
     """Open a tunnel to the server that ``find_server`` names (node, port), check that it
     answers, and keep the tunnel open until Ctrl+C.
@@ -178,8 +179,8 @@ def port_problem(port: int) -> str | None:
         else:
             return None
     another_port = (
-        "choose another port: for the shared models, add GAGNVIST_LOCAL_PORT=8790 (or any "
-        "free port; for JURECA, GAGNVIST_JURECA_LOCAL_PORT) to .env; for a server of your "
+        f"choose another port: for the shared models, add {DEFAULT.local_port_setting}=8790 "
+        "(or any free port) to .env; for a server of your "
         "own, use --port"
     )
     if failure.errno == errno.EACCES or getattr(failure, "winerror", None) == 10013:
@@ -191,7 +192,7 @@ def port_problem(port: int) -> str | None:
     if server_answers(port, "", timeout=5):
         return (
             f"port {port} on this computer is already in use by a tunnel, perhaps another "
-            "`gagnvist lumi connect` (or `jureca connect`) that is still open, or one that "
+            "`gagnvist jureca connect` that is still open, or one that "
             "was closed badly and left its ssh behind. Use that one, or stop it: on macOS or "
             f"Linux, `lsof -nP -iTCP:{port} -sTCP:LISTEN` shows its PID, then `kill <PID>`; on "
             f"Windows, `netstat -ano | findstr :{port}` shows its PID, then "
@@ -222,7 +223,7 @@ def _watch(
     node: str,
     find_server: Callable[[], tuple[str, int]],
     say: Callable[[str], None],
-    label: str = "LUMI",
+    label: str = DEFAULT.label,
 ) -> int | tuple[str, int]:
     """Wait while ssh runs, checking now and then that the server still answers.
 

@@ -1,8 +1,8 @@
 """Fine-tune a chat model with LoRA on a file of conversations.
 
-This script runs on LUMI, inside the LUMI AI Factory container, as part of the job that
-`gagnvist lumi finetune` submits (see finetune.sbatch). It uses only PyTorch,
-Transformers and PEFT, which that container includes.
+This script runs on the supercomputer, inside the job's container, as part of the job
+that `gagnvist jureca finetune` submits (see finetune.sbatch). It uses only PyTorch,
+Transformers and PEFT (which the organizers add where the container lacks it).
 
 Every line of the data file is one conversation that ends with the answer the model
 should learn to give:
@@ -116,7 +116,7 @@ def encode(
 
 
 def load_model(folder: str, device: str):
-    """The model in bfloat16, the number format LUMI's GPUs compute fastest in (on a
+    """The model in bfloat16, the number format A100 and MI250X GPUs compute fastest in (on a
     computer without a GPU, where this script is only tried out, in float32)."""
     dtype = torch.bfloat16 if device == "cuda" else torch.float32
     # Transformers 4.56 renamed the option torch_dtype to dtype.

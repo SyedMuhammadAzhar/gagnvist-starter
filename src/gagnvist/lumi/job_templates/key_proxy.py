@@ -1,12 +1,12 @@
 """The gatekeeper in front of a model server: only requests with the key get through.
 
-A server started by `gagnvist lumi start` runs vLLM on a socket file that only your
+A server started by `gagnvist jureca start` runs vLLM on a socket file that only your
 account can open, and this program in front of it, on a network port that the tunnel
 from your computer reaches. Every request must carry the job's key, sent as
 ``Authorization: Bearer <key>``; any other request is refused before it reaches vLLM,
 whatever its path. (vLLM's own key would protect only paths that start with /v1.)
 
-It runs inside the job, with the Python of the LUMI container, and uses only Python's
+It runs inside the job, with the Python of the job's container, and uses only Python's
 standard library. Usage, with the key in the environment variable GAGNVIST_KEY:
 
     python key_proxy.py SOCKET_FILE PORT

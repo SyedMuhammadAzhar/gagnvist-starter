@@ -55,10 +55,10 @@ class LocalTunnel:
         self.closed: list[tuple[int, str, int]] = []
 
     def reuses_connection(self) -> bool:
-        return False  # as on LUMI: every tunnel is a connection of its own
+        return False  # no shared connection: every tunnel is one of its own
 
     def node_address(self, node: str) -> str:
-        return node  # as on LUMI: a node is reached by its own name
+        return node  # a node reached by its own name
 
     def close_tunnel(self, local_port: int, node: str, remote_port: int) -> None:
         self.closed.append((local_port, node, remote_port))
@@ -167,7 +167,7 @@ def test_a_tunnel_follows_a_server_that_moved_while_ssh_stayed_open(
             raise KeyboardInterrupt
 
     hold_tunnel(tunnel, port, lambda: (next(nodes), 4000), "key", say)  # type: ignore[arg-type]
-    assert "The server on LUMI now runs on nid005002, not nid005001: following it." in messages
+    assert "The server on JURECA now runs on nid005002, not nid005001: following it." in messages
     assert f"Connected: http://127.0.0.1:{port}/v1 serves nid005002:4000." in messages
     assert all(process.poll() is not None for process in tunnel.processes)
 
@@ -205,4 +205,4 @@ def test_a_busy_port_says_what_holds_it() -> None:
         busy.bind(("127.0.0.1", 0))
         busy.listen()
         problem = port_problem(busy.getsockname()[1]) or ""
-    assert "another program" in problem and "GAGNVIST_LOCAL_PORT" in problem
+    assert "another program" in problem and "GAGNVIST_JURECA_LOCAL_PORT" in problem

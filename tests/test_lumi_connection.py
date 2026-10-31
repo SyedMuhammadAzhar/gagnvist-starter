@@ -1,15 +1,20 @@
-"""Running commands on LUMI through ssh (answered here by a fake ssh)."""
+"""Running commands on the supercomputer through ssh (answered here by a fake ssh), the
+plain way: one connection per command, a node reached by its own name (the shared
+connection and the InfiniBand names of JURECA are tested in test_jureca.py)."""
 
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from fake_lumi import make_recording_ssh, needs_posix
 
+from gagnvist.clusters import JURECA
 from gagnvist.lumi.connection import Lumi, LumiError, _windows_openssh
 
 pytestmark = needs_posix
+PLAIN = replace(JURECA, multiplex=False, ipv4_only=False, node_address="{node}")
 
 
 @pytest.fixture(scope="module")
@@ -21,7 +26,7 @@ def recording_ssh(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def lumi(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, recording_ssh: Path) -> Lumi:
     monkeypatch.setenv("PATH", f"{recording_ssh}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("FAKE_SSH_RECORD", str(tmp_path / "ssh-arguments.json"))
-    return Lumi("testuser", "lumi.example", tmp_path / "my key")
+    return Lumi("testuser", "lumi.example", tmp_path / "my key", PLAIN)
 
 
 def ssh_arguments(tmp_path: Path) -> list[str]:
@@ -62,7 +67,7 @@ def test_a_tunnel_listens_on_this_computer_only(
             "OpenSSH format",
         ),
         ('Load key "k": incorrect passphrase supplied to decrypt private key', "passphrase"),
-        ("Host key verification failed.", "accept LUMI's host key"),
+        ("Host key verification failed.", "accept JURECA's host key"),
         ("ssh: Could not resolve hostname lumi.example", "connected to the internet"),
         ("ssh: connect to host lumi.example port 22: Operation timed out", "timed out"),
     ],

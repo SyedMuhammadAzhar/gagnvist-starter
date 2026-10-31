@@ -220,7 +220,7 @@ def test_an_unreachable_server_points_to_the_tunnel() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connection refused", request=request)
 
-    with pytest.raises(ModelError, match="tunnel to LUMI"):
+    with pytest.raises(ModelError, match="is the tunnel open"):
         client_answering(handler).chat([{"role": "user", "content": "?"}])
 
 
@@ -257,6 +257,6 @@ def test_a_wrong_number_of_vectors_is_refused() -> None:
 def test_from_settings_uses_the_tunnel_and_the_shared_models(tmp_path: Path) -> None:
     settings = load_settings(write_settings(tmp_path, {"GAGNVIST_TEAM_KEY": "team-07-key"}))
     client = ModelClient.from_settings(settings)
-    assert client.chat_endpoint == Endpoint("http://127.0.0.1:8765/v1", "team-07-key", "qwen2.5-7b")
+    assert client.chat_endpoint == Endpoint("http://127.0.0.1:8775/v1", "team-07-key", "qwen2.5-7b")
     assert client.embedding_endpoint.model == "bge-m3"
     client.close()

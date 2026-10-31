@@ -23,12 +23,12 @@ from gagnvist.answering.find_tables import find_tables
 from gagnvist.answering.language import guess_language
 from gagnvist.answering.pipeline import Answer, AnswerError, Pipeline, open_vector_index
 from gagnvist.cards import make_table_cards, save_cards, search_cards
-from gagnvist.clusters import CLUSTERS
+from gagnvist.clusters import CLUSTERS, DEFAULT_CLUSTER
 from gagnvist.config import DEFAULT_CONFIG_FILE, ConfigError, Settings, load_settings
 from gagnvist.data.download import CheckResult, DataError, check_data, get_data
 from gagnvist.data.px_reader import PxError
 from gagnvist.evaluate import evaluate, not_right, outcome_line, read_questions, save, summary
-from gagnvist.lumi.cli import add_jureca_commands, add_lumi_commands
+from gagnvist.lumi.cli import add_cluster_commands
 from gagnvist.lumi.connection import LumiError
 from gagnvist.models.client import ModelClient, ModelError
 from gagnvist.search.table_index import TableIndex, build_index
@@ -49,7 +49,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         settings = load_settings(args.config)
-        if getattr(args, "cluster", None):  # --cluster, or a `gagnvist lumi/jureca` command
+        if getattr(args, "cluster", None):  # --cluster, or a `gagnvist jureca` command
             settings = settings.using_cluster(args.cluster)
         command: Command = args.command
         return command(args, settings)
@@ -99,7 +99,8 @@ def _build_parser() -> argparse.ArgumentParser:
     models.add_argument(
         "--cluster",
         choices=list(CLUSTERS),
-        help="whose shared models to use (default: GAGNVIST_CLUSTER in .env, else lumi)",
+        help="whose shared models to use "
+        f"(default: GAGNVIST_CLUSTER in .env, else {DEFAULT_CLUSTER})",
     )
 
     get = commands.add_parser("get-data", help="unpack the data and check every file")
@@ -182,8 +183,8 @@ def _build_parser() -> argparse.ArgumentParser:
     check.add_argument("--only", help="only the questions whose id contains this text")
     check.set_defaults(command=_evaluate)
 
-    add_lumi_commands(commands)
-    add_jureca_commands(commands)
+    for profile in CLUSTERS.values():
+        add_cluster_commands(commands, profile)
     return parser
 
 

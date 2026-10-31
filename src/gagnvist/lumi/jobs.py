@@ -1,20 +1,20 @@
-"""Your own work on LUMI or JURECA: models, model servers and fine-tuning jobs.
+"""Your own work on JURECA: models, model servers and fine-tuning jobs.
 
 Everything here runs under your own account, so Slurm itself guarantees that you can
 only see the details of, and stop, your own jobs. Your files live in two places (the
-folders of LUMI; JURECA's are in :mod:`gagnvist.clusters.jureca`):
+folders come from the supercomputer's profile, :mod:`gagnvist.clusters.jureca`):
 
-    /scratch/<project>/<username>/gagnvist/   models, fine-tuning runs and caches;
-                                              your teammates can read them, but only
-                                              you can change them
-    ~/.gagnvist/                              job logs, and the address and key of each
-                                              running server (your home folder, which
-                                              only you can read)
+    /p/project1/<project>/<username>/gagnvist/   models, fine-tuning runs and caches;
+                                                 your teammates can read them, but only
+                                                 you can change them
+    ~/.gagnvist/                                 job logs, and the address and key of
+                                                 each running server (your home folder,
+                                                 which only you can read)
 
 Each function sends one short script to a login node (see :class:`Lumi`, which knows
 which supercomputer it logs in to). The values put into the scripts are checked against
 strict patterns first (see :func:`_checked`), so that a typing mistake cannot turn into
-a different command. What differs between the two supercomputers (folders, partitions,
+a different command. What differs between supercomputers (folders, partitions,
 limits, the container runtime, the lines of a job script that ask for GPUs) comes from
 the supercomputer's :class:`~gagnvist.clusters.profile.Cluster`.
 
@@ -34,23 +34,23 @@ from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
-from gagnvist.clusters import LUMI, Cluster
+from gagnvist.clusters import DEFAULT, Cluster
 from gagnvist.config import Settings
 from gagnvist.lumi.connection import Lumi, LumiError
 
-# LUMI's limits, as the starter kit sets them so that no team can use up the shared GPU
+# JURECA's limits, as the starter kit sets them so that no team can use up the shared GPU
 # budget; each supercomputer's are in its profile (gagnvist/clusters/).
-MAX_JOBS = LUMI.max_jobs  # your jobs, running or waiting, at the same time
-GPU_CHOICES = LUMI.gpu_choices  # GPU chips (GCDs) per job: a model is split evenly between them
-MAX_HOURS = LUMI.partition_hours[LUMI.partitions[0]]  # hours per job
-PARTITIONS = LUMI.partitions  # dev-g starts sooner but allows at most 3 hours
+MAX_JOBS = DEFAULT.max_jobs  # your jobs, running or waiting, at the same time
+GPU_CHOICES = DEFAULT.gpu_choices  # GPUs per job: a model is split evenly between them
+MAX_HOURS = DEFAULT.partition_hours[DEFAULT.partitions[0]]  # hours per job
+PARTITIONS = DEFAULT.partitions  # dc-gpu-devel starts sooner but allows at most 2 hours
 
 JOB_NAMES = ("gagnvist-chat", "gagnvist-embeddings", "gagnvist-finetune")
 # The states of a job that holds GPUs, or waits for them. A job that is ending
 # (COMPLETING, for up to a minute after `stop`) or has ended does not count towards the
 # limit, so a job you stopped can be replaced at once.
 COUNTED_STATES = "PENDING,CONFIGURING,RUNNING,SUSPENDED"
-CPUS_PER_GPU = LUMI.cpus_per_gpu  # a GPU chip comes with up to 8 cores for the same price
+CPUS_PER_GPU = DEFAULT.cpus_per_gpu  # CPU cores a job asks for, per GPU
 LOGS = "$HOME/.gagnvist/logs"  # as written in the scripts, where the shell expands $HOME
 _SLURM_SILENT = "Slurm, {label}'s job system, did not answer; try again in a minute"
 
@@ -105,10 +105,10 @@ class Folders:
 
     project: str
     username: str
-    cluster: Cluster = LUMI
+    cluster: Cluster = DEFAULT
 
     @classmethod
-    def from_settings(cls, settings: Settings, cluster: Cluster = LUMI) -> Folders:
+    def from_settings(cls, settings: Settings, cluster: Cluster = DEFAULT) -> Folders:
         account = settings.cluster(cluster.name)
         return cls(
             _checked("project", account.project, cluster),
@@ -178,20 +178,20 @@ class ServerAddress:
 
 @dataclass(frozen=True)
 class ServerRequest:
-    """What `gagnvist lumi start` asks for."""
+    """What `gagnvist jureca start` asks for."""
 
     kind: str  # "chat" or "embeddings"
     model: str  # a model folder name in your models folder, or a full path there
     gpus: int = 1
     hours: int = 4
-    partition: str = ""  # the supercomputer's usual partition (small-g, dc-gpu) unless given
+    partition: str = ""  # the supercomputer's usual partition (dc-gpu) unless given
     context: int = 8192  # the longest conversation (prompt and answer), in tokens
     adapter: str = ""  # the name of one of your fine-tuning runs, to serve with the model
 
 
 @dataclass(frozen=True)
 class FinetuneRequest:
-    """What `gagnvist lumi finetune` asks for."""
+    """What `gagnvist jureca finetune` asks for."""
 
     model: str
     data: Path  # a JSON Lines file of conversations on this computer
@@ -225,7 +225,7 @@ def find_gateway(lumi: Lumi, settings: Settings) -> str:
 
 def check_account(lumi: Lumi, settings: Settings) -> dict[str, str]:
     """What the supercomputer says about your account: user name, groups, the partitions
-    the project lets you use (empty where Slurm does not list them, as on LUMI), the
+    the project lets you use (empty where Slurm does not list them), the
     gateway's node, and whether the project folder ("scratch") and the container for
     model jobs can be found."""
     folders = Folders.from_settings(settings, lumi.cluster)
@@ -265,7 +265,7 @@ def download_model(lumi: Lumi, settings: Settings, repo: str, name: str) -> str:
     wait for a download. The download's progress is shown as it happens; an interrupted
     download is continued by running the command again. A model that needs a licence
     accepted on Hugging Face also needs your Hugging Face token on the supercomputer, in
-    ~/.cache/huggingface/token there (docs/lumi.md, section 6; the same file on JURECA).
+    ~/.cache/huggingface/token there (see docs/jureca.md).
     """
     cluster = lumi.cluster
     folders = Folders.from_settings(settings, cluster)
@@ -373,7 +373,7 @@ def delete_stored(lumi: Lumi, settings: Settings, kind: str, name: str) -> str:
     return sizes[0].strip()
 
 
-def organizer_stop_folder(settings: Settings, cluster: Cluster = LUMI) -> str:
+def organizer_stop_folder(settings: Settings, cluster: Cluster = DEFAULT) -> str:
     """The organizers' folder of stop files on ``cluster``.
 
     Slurm lets only a job's owner cancel it, so a gagnvist job also ends itself when a
@@ -387,10 +387,10 @@ def organizer_stop_folder(settings: Settings, cluster: Cluster = LUMI) -> str:
     return f"{cluster.folder(project, organizer)}/gagnvist/stop"
 
 
-def organizer_libraries_folder(settings: Settings, cluster: Cluster = LUMI) -> str:
+def organizer_libraries_folder(settings: Settings, cluster: Cluster = DEFAULT) -> str:
     """The organizers' folder of Python libraries for fine-tuning on ``cluster``: what
     the container lacks (peft), installed there once by the organizers and put on the
-    Python path of every fine-tuning job; "" where the container has them (LUMI)."""
+    Python path of every fine-tuning job; "" where the container has them."""
     if not cluster.finetune_libraries:
         return ""
     account = settings.cluster(cluster.name)
@@ -502,7 +502,7 @@ def start_finetune(lumi: Lumi, settings: Settings, request: FinetuneRequest) -> 
 
 
 def list_jobs(lumi: Lumi) -> list[Job]:
-    """Your jobs on LUMI (all of them, not only gagnvist's), oldest first."""
+    """Your jobs on the supercomputer (all of them, not only gagnvist's), oldest first."""
     output = lumi.run(
         """
         if queue=$(squeue --me -h -o '@job %i|%j|%T|%B|%L'); then
@@ -601,7 +601,7 @@ def job_log(lumi: Lumi, job: str, lines: int = 40) -> str:
     return output
 
 
-def render_template(name: str, cluster: Cluster = LUMI, **values: str) -> str:
+def render_template(name: str, cluster: Cluster = DEFAULT, **values: str) -> str:
     """A job script from ``job_templates/``, with every {{placeholder}} filled in.
 
     The placeholders that differ between supercomputers (the modules, the container
@@ -671,7 +671,7 @@ def _submit(lumi: Lumi, checks: list[str], *, stdin: bytes, script: str = "") ->
         raise LumiError(
             f"fine-tuning is not available on {lumi.label} yet: its container lacks the "
             f"training library (peft), and the organizers have not put it in {found[0]}. "
-            "Ask them; meanwhile `gagnvist lumi finetune` works on LUMI"
+            "Ask them."
         )
     job_ids = [line.split(";")[0] for line in _tagged(output, "@job")]
     if not job_ids or not job_ids[0].isdigit():
@@ -718,7 +718,7 @@ def _check_resources(cluster: Cluster, gpus: int, hours: int, partition: str) ->
         raise LumiError(problem)
 
 
-def _checked(kind: str, value: str, cluster: Cluster = LUMI) -> str:
+def _checked(kind: str, value: str, cluster: Cluster = DEFAULT) -> str:
     """``value`` if it matches the pattern for ``kind``, so it is safe in a shell script.
     A project name or a full path must look like the supercomputer's."""
     patterns = {"project": cluster.project_pattern, "path": cluster.path_pattern}
@@ -729,7 +729,7 @@ def _checked(kind: str, value: str, cluster: Cluster = LUMI) -> str:
 
 def _tagged(output: str, tag: str) -> list[str]:
     """The values of the output lines that start with ``tag`` (other lines, such as
-    messages from LUMI's login scripts, are ignored)."""
+    messages from the login scripts, are ignored)."""
     prefix = tag + " "
     return [line[len(prefix) :].strip() for line in output.splitlines() if line.startswith(prefix)]
 
@@ -742,7 +742,7 @@ def _template_text(name: str) -> str:
 
 
 def _tar(files: dict[str, bytes]) -> bytes:
-    """A tar archive of ``files`` ({name: content}), to unpack on LUMI in one step."""
+    """A tar archive of ``files`` ({name: content}), to unpack on the supercomputer in one step."""
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w") as archive:
         for name, content in files.items():

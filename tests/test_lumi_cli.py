@@ -1,4 +1,4 @@
-"""The `gagnvist lumi` commands, run against the fake LUMI."""
+"""The `gagnvist jureca` commands, run against the fake JURECA."""
 
 import re
 from pathlib import Path
@@ -56,16 +56,16 @@ def test_start_jobs_and_stop_from_the_command_line(
 ) -> None:
     config = str(fake_lumi.config)
     fake_lumi.add_model("qwen7")
-    assert main(["--config", config, "lumi", "start", "chat", "qwen7", "--hours", "2"]) == 0
+    assert main(["--config", config, "jureca", "start", "chat", "qwen7", "--hours", "2"]) == 0
     printed = capsys.readouterr().out
     job = printed.split("Submitted job ", 1)[1].split(":", 1)[0]
-    assert "at most 1 GPU-hours" in printed
+    assert "at most 256 core-hours" in printed
 
-    assert main(["--config", config, "lumi", "jobs"]) == 0
+    assert main(["--config", config, "jureca", "jobs"]) == 0
     listed = capsys.readouterr().out
     assert job in listed and "gagnvist-chat" in listed and "PENDING" in listed
 
-    assert main(["--config", config, "lumi", "stop", job]) == 0
+    assert main(["--config", config, "jureca", "stop", job]) == 0
     assert fake_lumi.jobs() == []
 
 
@@ -74,20 +74,20 @@ def test_models_are_listed_and_deleted_from_the_command_line(
     fake_lumi: FakeLumi, capsys: pytest.CaptureFixture[str]
 ) -> None:
     config = str(fake_lumi.config)
-    assert main(["--config", config, "lumi", "models"]) == 0
+    assert main(["--config", config, "jureca", "models"]) == 0
     assert "no models of your own" in capsys.readouterr().out
     fake_lumi.add_model("qwen7")
     fake_lumi.add_model("half", complete=False)
-    assert main(["--config", config, "lumi", "models"]) == 0
+    assert main(["--config", config, "jureca", "models"]) == 0
     printed = capsys.readouterr().out
     assert "qwen7" in printed and "complete" in printed and "download not finished" in printed
     assert "FINE-TUNING RUN" not in printed  # there are none
 
-    assert main(["--config", config, "lumi", "delete", "model", "half"]) == 0
+    assert main(["--config", config, "jureca", "delete", "model", "half"]) == 0
     assert "Deleted the model half (" in capsys.readouterr().out
     assert not fake_lumi.mine("models", "half").exists()
     assert fake_lumi.mine("models", "qwen7", "config.json").exists()
-    assert main(["--config", config, "lumi", "delete", "run", "half"]) == 1
+    assert main(["--config", config, "jureca", "delete", "run", "half"]) == 1
     assert "no run 'half'" in capsys.readouterr().err
 
 
@@ -95,7 +95,7 @@ def test_models_are_listed_and_deleted_from_the_command_line(
 def test_check_reports_a_ready_account(
     fake_lumi: FakeLumi, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["--config", str(fake_lumi.config), "lumi", "check"]) == 0
+    assert main(["--config", str(fake_lumi.config), "jureca", "check"]) == 0
     printed = capsys.readouterr().out
     assert f"You are a member of the project {PROJECT}." in printed
     assert "The shared models are not running right now." in printed
@@ -107,7 +107,7 @@ def test_check_reports_a_key_that_is_not_a_team_key(
 ) -> None:
     env = fake_lumi.config.parent / ".env"
     env.write_text(env.read_text(encoding="utf-8").replace(TEAM_KEY, "team-01"), encoding="utf-8")
-    assert main(["--config", str(fake_lumi.config), "lumi", "check"]) == 1
+    assert main(["--config", str(fake_lumi.config), "jureca", "check"]) == 1
     printed = capsys.readouterr().out
     assert "PROBLEM: GAGNVIST_TEAM_KEY in .env: it has 7 characters" in printed
     assert "All set." not in printed
@@ -117,9 +117,9 @@ def test_check_reports_a_key_that_is_not_a_team_key(
 def test_errors_are_printed_without_a_traceback(
     fake_lumi: FakeLumi, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    assert main(["--config", str(fake_lumi.config), "lumi", "stop", "999"]) == 1
+    assert main(["--config", str(fake_lumi.config), "jureca", "stop", "999"]) == 1
     assert (
-        "error: a command on LUMI failed: scancel: error: Invalid job id 999"
+        "error: a command on JURECA failed: scancel: error: Invalid job id 999"
         in capsys.readouterr().err
     )
 
@@ -145,5 +145,5 @@ def test_connect_refuses_a_port_it_cannot_use(
     port: str, problem: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     with pytest.raises(SystemExit):
-        main(["lumi", "connect", "--port", port])
+        main(["jureca", "connect", "--port", port])
     assert problem in capsys.readouterr().err

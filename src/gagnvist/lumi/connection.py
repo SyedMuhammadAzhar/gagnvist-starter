@@ -1,18 +1,18 @@
 """Running commands on a supercomputer and opening tunnels to it, with your own SSH key.
 
 Everything goes through the ``ssh`` program that comes with macOS, Linux and Windows 10
-and later, using your own key (GAGNVIST_SSH_KEY in .env). The key never leaves your
+and later, using your own key (GAGNVIST_JURECA_SSH_KEY in .env). The key never leaves your
 computer, and no one else's key is ever needed.
 
 If your key has a passphrase, ssh asks for it every time it connects, unless your SSH
-agent holds the key: `gagnvist lumi check` and `connect` offer to give it the key, for
+agent holds the key: `gagnvist jureca check` and `connect` offer to give it the key, for
 as long as you choose (see :mod:`gagnvist.lumi.agent`).
 
-This was written for LUMI, and works the same for JURECA: a :class:`Lumi` knows which
-supercomputer it logs in to (its ``cluster``, see :mod:`gagnvist.clusters`). JURECA may
-ask for a one-time code at each login; there, the first connection is kept open and
-every later command and tunnel goes through it (ssh's ControlMaster), on macOS and
-Linux, so that the code is typed once.
+This was written for LUMI (hence the names), and works the same on JURECA: a
+:class:`Lumi` knows which supercomputer it logs in to (its ``cluster``, see
+:mod:`gagnvist.clusters`). JURECA may ask for a one-time code at each login; there, the
+first connection is kept open and every later command and tunnel goes through it (ssh's
+ControlMaster), on macOS and Linux, so that the code is typed once.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from gagnvist.clusters import LUMI, Cluster
+from gagnvist.clusters import DEFAULT, Cluster
 from gagnvist.config import ConfigError, Settings
 
 _SSH_FAILED = 255  # the exit status of ssh's own errors, as opposed to the command's
@@ -44,16 +44,17 @@ class LumiError(Exception):
 
 @dataclass(frozen=True)
 class Lumi:
-    """Your account on a supercomputer: LUMI unless ``cluster`` says JURECA."""
+    """Your account on a supercomputer: JURECA unless ``cluster`` says otherwise."""
 
     username: str
     host: str
     ssh_key: Path
-    cluster: Cluster = LUMI
+    cluster: Cluster = DEFAULT
 
     @classmethod
-    def from_settings(cls, settings: Settings, cluster: str = LUMI.name) -> Lumi:
-        """Your account on the supercomputer called ``cluster`` ("lumi" or "jureca")."""
+    def from_settings(cls, settings: Settings, cluster: str | None = None) -> Lumi:
+        """Your account on the supercomputer called ``cluster`` (by default the one the
+        settings use: GAGNVIST_CLUSTER in .env, or --cluster)."""
         settings.require_access(cluster)
         account = settings.cluster(cluster)
         if account.ssh_key is None:  # reported by require_access already

@@ -1,20 +1,20 @@
 """Settings: shared ones in ``gagnvist.toml``, personal ones in ``.env``.
 
-``gagnvist.toml`` holds what is the same for everyone (the projects on LUMI and JURECA,
-the shared models, where the data is), set by the organizers and committed with the
-code.
+``gagnvist.toml`` holds what is the same for everyone (the hackathon's project on
+JURECA, the shared models, where the data is), set by the organizers and committed with
+the code.
 
-``.env`` holds what is yours alone: your LUMI username, the path to your SSH key, your
-team's key, the same for JURECA if the hackathon uses it too, and the address and key
-of any model server of your own. Copy ``example.env`` to ``.env`` and fill it in; git
-ignores ``.env``, so it is never committed. A value in ``.env``, or in an environment
-variable of the same name, replaces the same setting in ``gagnvist.toml``.
+``.env`` holds what is yours alone: your JURECA username, the path to your SSH key, your
+team's key, and the address and key of any model server of your own. Copy
+``example.env`` to ``.env`` and fill it in; git ignores ``.env``, so it is never
+committed. A value in ``.env``, or in an environment variable of the same name, replaces
+the same setting in ``gagnvist.toml``.
 
 Each part of the program checks only the settings it needs, so for example the data can
-be downloaded and indexed before LUMI access is set up.
+be downloaded and indexed before JURECA access is set up.
 
-The shared models may run on either supercomputer; which one the commands use is
-``GAGNVIST_CLUSTER`` in .env (``lumi`` unless set), or ``--cluster`` on the command.
+The commands use JURECA unless ``GAGNVIST_CLUSTER`` in .env, or ``--cluster`` on the
+command, names another supercomputer this edition knows (see :mod:`gagnvist.clusters`).
 """
 
 from __future__ import annotations
@@ -26,32 +26,40 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
-from gagnvist.clusters import CLUSTERS, DEFAULT_CLUSTER, JURECA, LUMI, Cluster
+from gagnvist.clusters import CLUSTERS, DEFAULT_CLUSTER, Cluster
 
 DEFAULT_CONFIG_FILE = Path("gagnvist.toml")
 ENV_FILE = ".env"  # next to gagnvist.toml
 
-# The personal settings, by their name in .env and their place in gagnvist.toml.
-PERSONAL_SETTINGS = {
-    "GAGNVIST_LUMI_USERNAME": ("lumi", "username"),
-    "GAGNVIST_SSH_KEY": ("lumi", "ssh_key"),
-    "GAGNVIST_TEAM_KEY": ("shared_services", "team_key"),
-    # The second supercomputer, if the hackathon uses it (see docs/jureca.md).
-    "GAGNVIST_JURECA_USERNAME": ("jureca", "username"),
-    "GAGNVIST_JURECA_SSH_KEY": ("jureca", "ssh_key"),
-    "GAGNVIST_JURECA_LOCAL_PORT": ("jureca", "local_port"),
-    "GAGNVIST_CLUSTER": ("clusters", "default"),  # lumi or jureca: which one the commands use
-    "GAGNVIST_CHAT_MODEL": ("models", "chat"),
-    "GAGNVIST_CHAT_URL": ("models", "chat_url"),
-    "GAGNVIST_CHAT_KEY": ("models", "chat_key"),
-    "GAGNVIST_EMBEDDINGS_MODEL": ("models", "embeddings"),
-    "GAGNVIST_EMBEDDINGS_URL": ("models", "embeddings_url"),
-    "GAGNVIST_EMBEDDINGS_KEY": ("models", "embeddings_key"),
-    # To change these without editing gagnvist.toml (which `git pull` updates):
-    "GAGNVIST_LOCAL_PORT": ("shared_services", "local_port"),
-    "GAGNVIST_SEARCH_INDEX": ("search", "index"),
-    "GAGNVIST_SEARCH_CARDS": ("search", "cards"),
-}
+# The personal settings, by their name in .env and their place in gagnvist.toml. Your
+# account on each supercomputer comes first (GAGNVIST_JURECA_USERNAME and
+# GAGNVIST_JURECA_SSH_KEY for JURECA; the names are in the supercomputer's profile).
+PERSONAL_SETTINGS: dict[str, tuple[str, str]] = {}
+for _cluster in CLUSTERS.values():
+    PERSONAL_SETTINGS[_cluster.username_setting] = (_cluster.name, "username")
+    PERSONAL_SETTINGS[_cluster.ssh_key_setting] = (_cluster.name, "ssh_key")
+PERSONAL_SETTINGS.update(
+    {
+        "GAGNVIST_TEAM_KEY": ("team", "key"),
+        "GAGNVIST_CLUSTER": ("clusters", "default"),  # which supercomputer the commands use
+        "GAGNVIST_CHAT_MODEL": ("models", "chat"),
+        "GAGNVIST_CHAT_URL": ("models", "chat_url"),
+        "GAGNVIST_CHAT_KEY": ("models", "chat_key"),
+        "GAGNVIST_EMBEDDINGS_MODEL": ("models", "embeddings"),
+        "GAGNVIST_EMBEDDINGS_URL": ("models", "embeddings_url"),
+        "GAGNVIST_EMBEDDINGS_KEY": ("models", "embeddings_key"),
+        # To change these without editing gagnvist.toml (which `git pull` updates):
+        "GAGNVIST_SEARCH_INDEX": ("search", "index"),
+        "GAGNVIST_SEARCH_CARDS": ("search", "cards"),
+    }
+)
+for _cluster in CLUSTERS.values():  # the port of your tunnel to its shared models
+    PERSONAL_SETTINGS[_cluster.local_port_setting] = (_cluster.name, "local_port")
+
+# The personal settings of the LUMI edition of the starter kit (the repository's main
+# branch). A .env written for it, or for both editions, is read without complaint
+# here, and these lines of it are ignored.
+IGNORED_SETTINGS = frozenset({"GAGNVIST_LUMI_USERNAME", "GAGNVIST_SSH_KEY", "GAGNVIST_LOCAL_PORT"})
 
 # Team keys are 48 letters and digits (hexadecimal), made by the organizers.
 TEAM_KEY_LENGTH = 48
@@ -62,8 +70,7 @@ _QUOTES = {('"', '"'), ("'", "'"), ("\u201c", "\u201d"), ("\u2018", "\u2019"), (
 
 # Values from the example files that mean "not filled in yet".
 _EXAMPLE_VALUES = {
-    "your_lumi_username",
-    "your_jureca_username",
+    *(f"your_{name}_username" for name in CLUSTERS),
     "paste-your-team-key-here",
     "project_000000000",
     "organizer_username",
@@ -79,7 +86,7 @@ class ClusterSettings:
     """One supercomputer as the settings describe it: your account on it, the
     hackathon's project there, and where its shared models run."""
 
-    name: str  # "lumi" or "jureca"
+    name: str  # "jureca", or another name in gagnvist.clusters.CLUSTERS
     username: str
     ssh_key: Path | None  # your private key for it; None until set
     host: str
@@ -94,21 +101,6 @@ class ClusterSettings:
     def profile(self) -> Cluster:
         """The facts about this supercomputer (see gagnvist.clusters)."""
         return CLUSTERS[self.name]
-
-
-LumiSettings = ClusterSettings  # the name the LUMI code was written with
-
-
-@dataclass(frozen=True)
-class SharedServiceSettings:
-    """The shared models on LUMI (the same values as ``Settings.lumi`` holds), and
-    your team key, which the shared models on either supercomputer ask for."""
-
-    team_key: str
-    local_port: int  # the port on this computer where the tunnel to LUMI ends
-    gateway_user: str  # the organizer whose job serves the shared models
-    gateway_job: str  # the name of that job
-    gateway_port: int  # the port it listens on, on its LUMI node
 
 
 @dataclass(frozen=True)
@@ -138,13 +130,12 @@ class SearchSettings:
 
 @dataclass(frozen=True)
 class Settings:
-    lumi: ClusterSettings
-    shared_services: SharedServiceSettings
+    clusters: dict[str, ClusterSettings]  # every supercomputer gagnvist.toml describes, by name
+    team_key: str  # your team's key, which the shared models ask for
     models: ModelSettings
     data: DataSettings
     search: SearchSettings
     project_folder: Path  # the folder gagnvist.toml is in
-    jureca: ClusterSettings | None = None  # None if gagnvist.toml has no [jureca] section
     default_cluster: str = DEFAULT_CLUSTER  # whose shared models the commands use
 
     @property
@@ -160,41 +151,31 @@ class Settings:
         """The settings of the supercomputer called ``name``: by default the one the
         commands use (GAGNVIST_CLUSTER in .env, or --cluster)."""
         name = name or self.default_cluster
-        if name == LUMI.name:
-            # LUMI's shared models are described in [shared_services], which stays the
-            # one place for them (the LUMI code and the tests change them there).
-            shared = self.shared_services
-            return replace(
-                self.lumi,
-                gateway_user=shared.gateway_user,
-                gateway_job=shared.gateway_job,
-                gateway_port=shared.gateway_port,
-                local_port=shared.local_port,
-            )
-        if name == JURECA.name:
-            if self.jureca is None:
+        try:
+            return self.clusters[name]
+        except KeyError:
+            if name in CLUSTERS:
                 raise ConfigError(
-                    "this starter kit is not set up for JURECA: gagnvist.toml has no "
-                    "[jureca] section (get the latest version of the starter kit)"
-                )
-            return self.jureca
-        raise ConfigError(
-            f"there is no supercomputer called {name!r}: GAGNVIST_CLUSTER (or --cluster) "
-            f"is {' or '.join(CLUSTERS)}"
-        )
+                    f"this starter kit is not set up for {CLUSTERS[name].label}: gagnvist.toml "
+                    f"has no [{name}] section (get the latest version of the starter kit)"
+                ) from None
+            raise ConfigError(
+                f"there is no supercomputer called {name!r}: GAGNVIST_CLUSTER (or --cluster) "
+                f"is {' or '.join(CLUSTERS)}"
+            ) from None
 
     def using_cluster(self, name: str) -> Settings:
         """The same settings, with the commands using the supercomputer ``name``."""
         self.cluster(name)  # known, and set up
         return replace(self, default_cluster=name)
 
-    def require_lumi_access(self) -> None:
-        """Raise ConfigError unless everything needed to reach LUMI is filled in."""
-        self.require_access(LUMI.name)
+    def with_cluster(self, account: ClusterSettings) -> Settings:
+        """The same settings, with ``account`` in place of that supercomputer's."""
+        return replace(self, clusters={**self.clusters, account.name: account})
 
-    def require_access(self, name: str) -> None:
+    def require_access(self, name: str | None = None) -> None:
         """Raise ConfigError unless everything needed to reach the supercomputer ``name``
-        is filled in."""
+        (by default the one the commands use) is filled in."""
         account = self.cluster(name)
         facts = account.profile
         if not account.username or account.username in _EXAMPLE_VALUES:
@@ -202,7 +183,7 @@ class Settings:
         if account.project in _EXAMPLE_VALUES:
             raise ConfigError(
                 f"the hackathon's {facts.label} project is missing in gagnvist.toml "
-                f"([{name}] project)"
+                f"([{account.name}] project)"
             )
         if account.ssh_key is None:
             raise ConfigError(_personal(facts.ssh_key_setting, "the path to your own SSH key"))
@@ -221,15 +202,15 @@ class Settings:
                 raise ConfigError(
                     f"{account.ssh_key} is a PuTTY key, which ssh cannot read: in PuTTYgen, "
                     "load it and choose Conversions, Export OpenSSH key "
-                    f"(see {account.profile.docs})"
+                    f"(see {facts.docs})"
                 )
 
     def require_team_key(self) -> None:
         """Raise ConfigError unless the team key is filled in and can be sent.
 
         A key that is filled in but does not look like a team key is allowed here (see
-        :func:`team_key_problem`, which ``gagnvist lumi check`` reports)."""
-        key = self.shared_services.team_key
+        :func:`team_key_problem`, which ``gagnvist jureca check`` reports)."""
+        key = self.team_key
         if not key or key in _EXAMPLE_VALUES:
             raise ConfigError(_personal("GAGNVIST_TEAM_KEY", "your team's key"))
         if not key.isascii() or any(c.isspace() for c in key):
@@ -238,13 +219,13 @@ class Settings:
                 "Copy the key again, exactly as the organizers sent it."
             )
 
-    def require_gateway(self, name: str = LUMI.name) -> None:
+    def require_gateway(self, name: str | None = None) -> None:
         """Raise ConfigError unless the organizers have said where the shared models on
-        the supercomputer ``name`` run."""
-        if self.cluster(name).gateway_user in _EXAMPLE_VALUES:
-            section = "shared_services" if name == LUMI.name else name
+        the supercomputer ``name`` (by default the one the commands use) run."""
+        account = self.cluster(name)
+        if account.gateway_user in _EXAMPLE_VALUES:
             raise ConfigError(
-                f"[{section}] gateway_user is not filled in in gagnvist.toml: the "
+                f"[{account.name}] gateway_user is not filled in in gagnvist.toml: the "
                 "organizers set it (get the latest version of the starter kit)"
             )
 
@@ -290,41 +271,26 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
         else:
             raw.setdefault(section, {})[key] = value
 
-    lumi = _section(raw, "lumi")
-    shared = _section(raw, "shared_services")
     models = _section(raw, "models")
     data = _section(raw, "data")
     search = _section(raw, "search")
-    ssh_key = _text(lumi, "lumi", "ssh_key", required=False)
     archive = _text(data, "data", "archive", required=False)
-    shared_services = SharedServiceSettings(
-        team_key=_text(shared, "shared_services", "team_key", required=False),
-        local_port=_port(shared, "shared_services", "local_port"),
-        gateway_user=_text(shared, "shared_services", "gateway_user"),
-        gateway_job=_text(shared, "shared_services", "gateway_job"),
-        gateway_port=_port(shared, "shared_services", "gateway_port"),
-    )
+    # The default supercomputer must be described; any other one of this edition may be.
+    clusters = {}
+    for name in CLUSTERS:
+        if _describes_cluster(raw.get(name)):
+            clusters[name] = _cluster_settings(raw, name, base)
+        elif name == DEFAULT_CLUSTER:
+            raise ConfigError(f"gagnvist.toml has no [{name}] section")
     default_cluster = _text(raw.get("clusters") or {}, "clusters", "default", required=False)
     if default_cluster and default_cluster not in CLUSTERS:
         raise ConfigError(
             f"GAGNVIST_CLUSTER in .env is {default_cluster!r}: it is {' or '.join(CLUSTERS)}"
         )
     return Settings(
-        lumi=ClusterSettings(
-            name=LUMI.name,
-            username=_text(lumi, "lumi", "username", required=False),
-            ssh_key=_key_path(base, ssh_key) if ssh_key else None,
-            host=_text(lumi, "lumi", "host"),
-            project=_text(lumi, "lumi", "project"),
-            container=_text(lumi, "lumi", "container"),
-            gateway_user=shared_services.gateway_user,
-            gateway_job=shared_services.gateway_job,
-            gateway_port=shared_services.gateway_port,
-            local_port=shared_services.local_port,
-        ),
-        jureca=_jureca_settings(raw, base),
+        clusters=clusters,
+        team_key=_text(raw.get("team") or {}, "team", "key", required=False),
         default_cluster=default_cluster or DEFAULT_CLUSTER,
-        shared_services=shared_services,
         models=ModelSettings(
             chat=_text(models, "models", "chat"),
             embeddings=_text(models, "models", "embeddings"),
@@ -347,26 +313,30 @@ def load_settings(path: Path = DEFAULT_CONFIG_FILE) -> Settings:
     )
 
 
-def _jureca_settings(raw: dict[str, Any], base: Path) -> ClusterSettings | None:
-    """The [jureca] section of gagnvist.toml, with the personal settings for JURECA
-    from .env; None when the hackathon does not use JURECA (no such section)."""
-    section = raw.get("jureca")
-    if not isinstance(section, dict) or not any(
+def _describes_cluster(section: Any) -> bool:
+    """Whether a [section] of gagnvist.toml describes a supercomputer (and does not just
+    hold the personal settings for one, which .env may put there anyway)."""
+    return isinstance(section, dict) and any(
         key in section for key in ("host", "project", "container", "gateway_user")
-    ):
-        return None  # at most the personal settings, which .env may hold anyway
-    ssh_key = _text(section, "jureca", "ssh_key", required=False)
+    )
+
+
+def _cluster_settings(raw: dict[str, Any], name: str, base: Path) -> ClusterSettings:
+    """The [name] section of gagnvist.toml, with the personal settings for that
+    supercomputer from .env."""
+    section = _section(raw, name)
+    ssh_key = _text(section, name, "ssh_key", required=False)
     return ClusterSettings(
-        name=JURECA.name,
-        username=_text(section, "jureca", "username", required=False),
+        name=name,
+        username=_text(section, name, "username", required=False),
         ssh_key=_key_path(base, ssh_key) if ssh_key else None,
-        host=_text(section, "jureca", "host"),
-        project=_text(section, "jureca", "project"),
-        container=_text(section, "jureca", "container"),
-        gateway_user=_text(section, "jureca", "gateway_user"),
-        gateway_job=_text(section, "jureca", "gateway_job"),
-        gateway_port=_port(section, "jureca", "gateway_port"),
-        local_port=_port(section, "jureca", "local_port"),
+        host=_text(section, name, "host"),
+        project=_text(section, name, "project"),
+        container=_text(section, name, "container"),
+        gateway_user=_text(section, name, "gateway_user"),
+        gateway_job=_text(section, name, "gateway_job"),
+        gateway_port=_port(section, name, "gateway_port"),
+        local_port=_port(section, name, "local_port"),
     )
 
 
@@ -391,7 +361,8 @@ def read_env_file(path: Path) -> dict[str, str]:
 
     Blank lines and lines that start with ``#`` are skipped. A value may be put in
     quotes; otherwise a `` #`` and everything after it is a comment. Every name must be
-    one of PERSONAL_SETTINGS, so that a misspelt name is reported, not ignored.
+    one of PERSONAL_SETTINGS, so that a misspelt name is reported, not ignored (the LUMI
+    edition's names, IGNORED_SETTINGS, are skipped quietly).
     """
     raw = path.read_bytes()
     # UTF-16 has a zero byte in every letter of .env; a file that is partly UTF-16 (as
@@ -415,9 +386,11 @@ def read_env_file(path: Path) -> dict[str, str]:
             continue
         name, equals, value = line.removeprefix("export ").partition("=")
         name, value = name.strip(), value.strip(_INVISIBLE + " \t")
-        if not equals or name not in PERSONAL_SETTINGS:
+        if not equals or (name not in PERSONAL_SETTINGS and name not in IGNORED_SETTINGS):
             known = ", ".join(PERSONAL_SETTINGS)
             raise ConfigError(f"{path}, line {number}: expected NAME=value, NAME one of {known}")
+        if name in IGNORED_SETTINGS:
+            continue
         if len(value) >= 2 and (value[0], value[-1]) in _QUOTES:
             value = value[1:-1].strip(_INVISIBLE)
         else:

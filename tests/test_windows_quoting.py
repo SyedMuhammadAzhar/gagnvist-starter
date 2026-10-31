@@ -1,13 +1,13 @@
 """On Windows, Python joins a command's arguments into one command line, and ssh.exe
-splits it again with the rules of the Microsoft C runtime. The scripts sent to LUMI must
-survive that round trip unchanged."""
+splits it again with the rules of the Microsoft C runtime. The scripts sent to the
+supercomputer must survive that round trip unchanged."""
 
 import shlex
 import subprocess
 
 import pytest
 
-from gagnvist.clusters import LUMI
+from gagnvist.clusters import JURECA
 from gagnvist.lumi import jobs
 
 
@@ -59,8 +59,8 @@ class Recorder:
         self.scripts.append(script)
         return self.reply
 
-    cluster = LUMI  # as a Lumi knows which supercomputer it logs in to
-    label = LUMI.label
+    cluster = JURECA  # as a Lumi knows which supercomputer it logs in to
+    label = JURECA.label
 
 
 def test_the_splitter_follows_the_windows_rules() -> None:
@@ -80,7 +80,8 @@ def test_the_splitter_follows_the_windows_rules() -> None:
     ],
 )
 def test_scripts_survive_the_windows_command_line(script: str) -> None:
-    command = ["ssh", "-i", r"C:\Users\Jón Jónsson\.ssh\id_ed25519_lumi", "u@lumi.csc.fi"]
+    key = r"C:\Users\Jón Jónsson\.ssh\id_ed25519_jureca"
+    command = ["ssh", "-i", key, "u@jureca.fz-juelich.de"]
     command.append("bash -lc " + shlex.quote(script))
     assert windows_split(subprocess.list2cmdline(command)) == command
 
@@ -96,5 +97,5 @@ def test_the_real_remote_scripts_survive_the_windows_command_line(
     jobs.start_server(recorder, settings, jobs.ServerRequest("chat", "qwen7"))  # type: ignore[arg-type]
     assert len(recorder.scripts) == 4
     for script in recorder.scripts:
-        command = ["ssh", "u@lumi.csc.fi", "bash -lc " + shlex.quote(script)]
+        command = ["ssh", "u@jureca.fz-juelich.de", "bash -lc " + shlex.quote(script)]
         assert windows_split(subprocess.list2cmdline(command)) == command

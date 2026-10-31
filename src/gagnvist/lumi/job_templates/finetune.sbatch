@@ -1,7 +1,6 @@
 #!/bin/bash -l
-# Fine-tuning for the GAGNVÍST hackathon, submitted by `gagnvist lumi finetune` (or
-# `gagnvist jureca finetune`: the lines that differ between the two supercomputers come
-# from gagnvist/clusters/).
+# Fine-tuning for the GAGNVÍST hackathon, submitted by `gagnvist jureca finetune` (the
+# lines that differ between supercomputers come from gagnvist/clusters/).
 #
 # Trains a LoRA adapter for the model in {{model_path}} on the conversations in
 # {{run_folder}}/train.jsonl, and saves it in {{run_folder}}/adapter.

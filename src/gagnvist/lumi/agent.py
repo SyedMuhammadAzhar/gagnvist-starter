@@ -1,9 +1,9 @@
 """Remembering the passphrase of your SSH key for a while, so that ssh stops asking.
 
-ssh asks for your key's passphrase every time it connects to LUMI: for every
-``gagnvist lumi`` command, and again whenever the tunnel reconnects. The SSH agent that
+ssh asks for your key's passphrase every time it connects to the supercomputer: for every
+``gagnvist jureca`` command, and again whenever the tunnel reconnects. The SSH agent that
 comes with macOS, Linux and Windows can hold the unlocked key instead, and
-``gagnvist lumi check`` and ``connect`` offer to give it the key (:func:`remember_key`):
+``gagnvist jureca check`` and ``connect`` offer to give it the key (:func:`remember_key`):
 
 - on macOS and Linux for as long as you choose (``ssh-add -t``); then the agent forgets
   it, and ssh asks again;

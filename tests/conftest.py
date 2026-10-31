@@ -1,5 +1,5 @@
 """Shared test fixtures: a miniature copy of the data release (see fixtures/README.md),
-the stand-in model server (see standin.py) and a fake LUMI (see fake_lumi.py)."""
+the stand-in model server (see standin.py) and a fake JURECA (see fake_lumi.py)."""
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -53,20 +53,19 @@ def fake_programs(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture
 def fake_lumi(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_programs: Path) -> FakeLumi:
-    """A fake LUMI on this computer (see fake_lumi.py)."""
+    """A fake JURECA on this computer (see fake_lumi.py)."""
     return FakeLumi(tmp_path, monkeypatch, fake_programs)
 
 
 @pytest.fixture
 def fake_lumi_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_programs: Path):  # type: ignore[no-untyped-def]
-    """Settings that point at the fake LUMI, for tests that need only the settings."""
+    """Settings that point at the fake JURECA, for tests that need only the settings."""
     return FakeLumi(tmp_path, monkeypatch, fake_programs).settings
 
 
 @pytest.fixture
 def fake_jureca(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_programs: Path) -> FakeLumi:
-    """A fake JURECA on this computer (see fake_lumi.py): the same fake, with JURECA's
-    folders, project and container runtime."""
+    """The same fake JURECA, under the name the JURECA tests use."""
     return FakeLumi(tmp_path, monkeypatch, fake_programs, cluster="jureca")
 
 

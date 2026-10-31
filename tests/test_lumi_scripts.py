@@ -1,4 +1,4 @@
-"""The job scripts that run on LUMI, run here with bash, the fake programs and the real
+"""The job scripts that run on the supercomputer, run here with bash, the fake programs and the real
 gatekeeper (key_proxy.py)."""
 
 import contextlib
@@ -42,9 +42,9 @@ def serve_script(tmp_path: Path, name: str) -> Path:
             job_name="gagnvist-chat",
             kind="chat",
             project=PROJECT,
-            partition="small-g",
+            partition="dc-gpu",
             gpus="1",
-            cpus="7",
+            cpus="8",
             hours="1",
             container=CONTAINER,
             model_path=str(tmp_path / "model"),
@@ -203,8 +203,8 @@ def finetune_script(tmp_path: Path) -> Path:
         render_template(
             "finetune.sbatch",
             project=PROJECT,
-            partition="small-g",
-            cpus="7",
+            partition="dc-gpu",
+            cpus="8",
             hours="2",
             container=CONTAINER,
             model_path=str(tmp_path / "model"),
@@ -215,7 +215,7 @@ def finetune_script(tmp_path: Path) -> Path:
             learning_rate="0.0002",
             stop_folder=str(tmp_path / "stop"),
             finetune_script=_template_text("finetune_lora.py"),
-            finetune_environment="",  # as on LUMI, whose container has peft
+            finetune_environment="",  # no extra libraries needed
         ),
         encoding="utf-8",
     )

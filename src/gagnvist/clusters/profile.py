@@ -1,12 +1,13 @@
 """What differs between the supercomputers the starter kit can use.
 
 The code in :mod:`gagnvist.lumi` (ssh, tunnels, jobs, the job scripts) was written for
-LUMI and runs unchanged for JURECA: a login over ssh, Slurm jobs, vLLM in a container.
+LUMI, the supercomputer of the starter kit's ``main`` branch, and runs unchanged on the
+supercomputers of this edition: a login over ssh, Slurm jobs, vLLM in a container.
 Everything that is *not* the same is a fact about one supercomputer, kept in a
 :class:`Cluster` and nowhere else: its login host, where your files go, how a job asks
 for GPUs and finds the container runtime, what a job costs, and the limits the starter
-kit sets. :mod:`gagnvist.clusters.lumi` and :mod:`gagnvist.clusters.jureca` hold the
-two profiles; :func:`gagnvist.clusters.cluster` finds one by name.
+kit sets. :mod:`gagnvist.clusters.jureca` holds JURECA's profile;
+:func:`gagnvist.clusters.cluster` finds a profile by name.
 """
 
 from __future__ import annotations
@@ -68,7 +69,7 @@ class Cluster:
     login_container_runtime: str  # the same on a login node (no GPU)
     gpu_environment: str  # exported variables the GPUs' libraries need ("" if none)
     gpu_request: str  # the #SBATCH lines that ask for {gpus} GPUs
-    # Cost: either per GPU (LUMI) or per node (JURECA).
+    # Cost: either per GPU (as LUMI bills) or per node (as JURECA does).
     cost_per_gpu_hour: float  # GPU-hours billed per GPU per hour, 0 if billed per node
     cost_per_node_hour: int  # core-hours billed per node per hour, 0 if billed per GPU
 
@@ -91,7 +92,7 @@ class Cluster:
             return f"use the partition {' or '.join(self.partitions)}, not {partition!r}"
         if gpus not in self.gpu_choices:
             choices = ", ".join(str(n) for n in self.gpu_choices)
-            return f"ask for {choices} GPU chips (a model is split evenly), not {gpus}"
+            return f"ask for {choices} GPUs (a model is split evenly between them), not {gpus}"
         longest = self.partition_hours[partition]
         if not 1 <= hours <= longest:
             return f"ask for 1 to {longest} hours on {partition}, not {hours}"

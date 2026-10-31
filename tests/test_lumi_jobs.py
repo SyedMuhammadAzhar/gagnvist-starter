@@ -1,4 +1,4 @@
-"""Models, servers and fine-tuning jobs on LUMI, run against the fake LUMI."""
+"""Models, servers and fine-tuning jobs on JURECA, run against the fake JURECA."""
 
 import json
 import os
@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from fake_lumi import CONTAINER, ORGANIZER, PROJECT, USER, FakeLumi, needs_posix
 
+from gagnvist.clusters import JURECA
 from gagnvist.lumi import jobs
 from gagnvist.lumi.connection import LumiError
 from gagnvist.lumi.jobs import (
@@ -37,7 +38,7 @@ from gagnvist.lumi.jobs import (
 pytestmark = needs_posix
 
 LOG_OPTION = "--output=" + "{home}/.gagnvist/logs/%x-%j.log"
-STOP_FOLDER = f"/scratch/{PROJECT}/{ORGANIZER}/gagnvist/stop"
+STOP_FOLDER = f"/p/project1/{PROJECT}/{ORGANIZER}/gagnvist/stop"
 
 
 def test_check_account_reports_project_container_and_gateway(fake_lumi: FakeLumi) -> None:
@@ -45,8 +46,8 @@ def test_check_account_reports_project_container_and_gateway(fake_lumi: FakeLumi
     facts = check_account(fake_lumi.lumi, fake_lumi.settings)
     assert facts == {
         "user": USER,
-        "groups": f"{USER} {PROJECT}",
-        "partitions": "",  # LUMI does not split a project's membership by partition
+        "groups": f"{USER} {PROJECT} container",
+        "partitions": "dc-gpu dc-gpu-devel dc-cpu",  # the budgets the member was given
         "scratch": "yes",
         "container": "yes",
         "gateway": "nid007001",
@@ -64,7 +65,7 @@ def test_the_gateway_is_found_by_its_owner_and_name(fake_lumi: FakeLumi) -> None
 
 def test_a_model_is_downloaded_once(fake_lumi: FakeLumi, capfd: pytest.CaptureFixture[str]) -> None:
     path = download_model(fake_lumi.lumi, fake_lumi.settings, "Qwen/Qwen2.5-7B-Instruct", "qwen7")
-    assert path == f"/scratch/{PROJECT}/{USER}/gagnvist/models/qwen7"
+    assert path == f"/p/project1/{PROJECT}/{USER}/gagnvist/models/qwen7"
     config = json.loads(
         fake_lumi.mine("models", "qwen7", "config.json").read_text(encoding="utf-8")
     )
@@ -127,7 +128,7 @@ def test_the_older_weight_format_is_left_out_when_the_newer_one_is_there(tmp_pat
 def test_your_folders_are_made_writable_by_you_only(fake_lumi: FakeLumi) -> None:
     base = fake_lumi.mine()
     base.mkdir(parents=True)
-    base.chmod(0o775)  # group-writable, as LUMI's default permissions make new folders
+    base.chmod(0o775)  # group-writable, as a project folder's default permissions may make it
     download_model(fake_lumi.lumi, fake_lumi.settings, "Qwen/Qwen2.5-7B-Instruct", "qwen7")
     for folder in (base.parent, base, fake_lumi.mine("models"), fake_lumi.mine("models", "qwen7")):
         assert folder.stat().st_mode & 0o022 == 0, folder
@@ -146,11 +147,11 @@ def test_a_folder_that_is_not_yours_is_refused(
     assert "is not a folder of yours" in capfd.readouterr().err
     assert list(elsewhere.iterdir()) == []
 
-    teammate = fake_lumi.root / "scratch" / PROJECT / "teammate" / "gagnvist" / "models" / "m"
+    teammate = fake_lumi.project_folder / "teammate" / "gagnvist" / "models" / "m"
     teammate.mkdir(parents=True)
     (teammate / "config.json").write_text("{}", encoding="utf-8")
     request = FinetuneRequest(
-        model=f"/scratch/{PROJECT}/teammate/gagnvist/models/m", data=_data(tmp_path), name="r"
+        model=f"/p/project1/{PROJECT}/teammate/gagnvist/models/m", data=_data(tmp_path), name="r"
     )
     with pytest.raises(LumiError, match="is not a folder of yours"):
         start_finetune(fake_lumi.lumi, fake_lumi.settings, request)
@@ -164,13 +165,13 @@ def test_a_chat_server_job_is_submitted_with_the_right_resources(fake_lumi: Fake
     script = fake_lumi.submitted(job)
     assert "#SBATCH --job-name=gagnvist-chat" in script
     assert f"#SBATCH --account={PROJECT}" in script
-    assert "#SBATCH --gpus-per-node=2" in script
-    assert "#SBATCH --cpus-per-task=14" in script
+    assert "#SBATCH --gres=gpu:2" in script
+    assert "#SBATCH --cpus-per-task=16" in script
     assert "#SBATCH --time=6:00:00" in script
-    assert f"vllm serve /scratch/{PROJECT}/{USER}/gagnvist/models/qwen7" in script
+    assert f"vllm serve /p/project1/{PROJECT}/{USER}/gagnvist/models/qwen7" in script
     assert "--tensor-parallel-size 2" in script
     assert "--max-model-len 8192" in script
-    assert f"singularity run {CONTAINER} vllm serve" in script
+    assert f"srun {JURECA.container_runtime} {CONTAINER} vllm serve" in script
     assert "class Gatekeeper" in script  # the gatekeeper travels inside the job script
     assert "--api-key" not in script
     assert f'stop_file="{STOP_FOLDER}/$SLURM_JOB_ID"' in script  # the organizers' way to end it
@@ -195,14 +196,14 @@ def test_an_adapter_is_served_under_its_own_name(fake_lumi: FakeLumi) -> None:
     (adapter / "adapter_config.json").write_text("{}", encoding="utf-8")
     request = ServerRequest("chat", "qwen7", adapter="my-run")
     script = fake_lumi.submitted(start_server(fake_lumi.lumi, fake_lumi.settings, request))
-    lora = f"--lora-modules my-run=/scratch/{PROJECT}/{USER}/gagnvist/finetune/my-run/adapter"
+    lora = f"--lora-modules my-run=/p/project1/{PROJECT}/{USER}/gagnvist/finetune/my-run/adapter"
     assert lora in script
     assert "--served-model-name qwen7" in script
     assert '"{{request_name}}"' not in script and '"my-run"' in script
 
 
 def test_a_missing_model_is_reported_before_anything_is_submitted(fake_lumi: FakeLumi) -> None:
-    with pytest.raises(LumiError, match="was not found on LUMI"):
+    with pytest.raises(LumiError, match="was not found on JURECA"):
         start_server(fake_lumi.lumi, fake_lumi.settings, ServerRequest("chat", "nothing"))
     assert fake_lumi.jobs() == []
 
@@ -301,10 +302,10 @@ def test_the_organizers_stop_folder_is_in_their_part_of_the_project(fake_lumi: F
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
-        ({"gpus": 3}, "1, 2, 4 GPU chips"),
-        ({"gpus": 8}, "1, 2, 4 GPU chips"),
-        ({"hours": 13}, "1 to 12 hours"),
-        ({"partition": "dev-g", "hours": 4}, "1 to 3 hours on dev-g"),
+        ({"gpus": 3}, "1, 2, 4 GPUs"),
+        ({"gpus": 8}, "1, 2, 4 GPUs"),
+        ({"hours": 7}, "1 to 6 hours"),
+        ({"partition": "dc-gpu-devel", "hours": 4}, "1 to 2 hours on dc-gpu-devel"),
         ({"partition": "standard-g"}, "partition"),
         ({"context": 100}, "context of 512"),
         ({"model": "../other"}, "not a valid name"),
@@ -322,10 +323,10 @@ def test_requests_outside_the_rules_are_refused_without_running_anything(
 
 
 def test_a_teammates_model_can_be_named_by_its_full_path(fake_lumi: FakeLumi) -> None:
-    folder = fake_lumi.root / "scratch" / PROJECT / "teammate" / "gagnvist" / "models" / "m"
+    folder = fake_lumi.project_folder / "teammate" / "gagnvist" / "models" / "m"
     folder.mkdir(parents=True)
     (folder / "config.json").write_text("{}", encoding="utf-8")
-    full_path = f"/scratch/{PROJECT}/teammate/gagnvist/models/m"
+    full_path = f"/p/project1/{PROJECT}/teammate/gagnvist/models/m"
     job = start_server(fake_lumi.lumi, fake_lumi.settings, ServerRequest("chat", full_path))
     assert f"vllm serve {full_path}" in fake_lumi.submitted(job)
 
@@ -446,13 +447,13 @@ def test_finetuning_uploads_the_data_and_carries_the_script_in_the_job(
 def test_every_template_renders_completely_and_is_valid_bash() -> None:
     values = {
         "serve.sbatch": dict(
-            job_name="gagnvist-chat", kind="chat", project=PROJECT, partition="small-g",
-            gpus="1", cpus="7", hours="4", container=CONTAINER, model_path="/m",
+            job_name="gagnvist-chat", kind="chat", project=PROJECT, partition="dc-gpu",
+            gpus="1", cpus="8", hours="4", container=CONTAINER, model_path="/m",
             served_name="m", request_name="m", extra_arguments="--max-model-len 8192",
             stop_folder=STOP_FOLDER, key_proxy="print('gatekeeper')",
         ),
         "finetune.sbatch": dict(
-            project=PROJECT, partition="small-g", cpus="7", hours="2", container=CONTAINER,
+            project=PROJECT, partition="dc-gpu", cpus="8", hours="2", container=CONTAINER,
             model_path="/m", run_folder="/r", run_name="r", epochs="1", rank="16",
             learning_rate="0.0002", stop_folder=STOP_FOLDER,
             finetune_script="print('training')", finetune_environment="",
@@ -487,7 +488,7 @@ def test_the_example_settings_pass_the_checks_used_in_job_scripts() -> None:
     container = text.split('container = "', 1)[1].split('"', 1)[0]
     assert _checked("container", container) == container
     assert _checked("name", "gagnvist-gateway") == "gagnvist-gateway"
-    assert os.path.basename(container).startswith("lumi-multitorch-full-")
+    assert os.path.basename(container).startswith("vllm-openai-")
 
 
 def test_a_template_saved_by_notepad_still_starts_with_its_shebang(

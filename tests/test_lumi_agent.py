@@ -215,8 +215,8 @@ def test_check_and_connect_offer_to_remember_the_key(
 
     monkeypatch.setattr("gagnvist.lumi.cli.remember_key", remember)
     with pytest.raises(SystemExit):
-        main(["--config", str(fake_lumi.config), "lumi", command])
-    assert offered == [fake_lumi.settings.lumi.ssh_key]
+        main(["--config", str(fake_lumi.config), "jureca", command])
+    assert offered == [fake_lumi.settings.cluster().ssh_key]
 
 
 @needs_posix

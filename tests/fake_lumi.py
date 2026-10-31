@@ -1,12 +1,11 @@
-"""A fake LUMI (or JURECA) for the tests: ssh, Slurm and the container runtime, all on
-this computer.
+"""A fake JURECA for the tests: ssh, Slurm and the container runtime, all on this
+computer. (The names say LUMI, the supercomputer the fake was written for.)
 
 The fake ``ssh`` runs the script it is given right here instead of on the
-supercomputer, with its folders (/scratch and /appl on LUMI, /p on JURECA) moved into
-a temporary folder. The fake Slurm commands (squeue, sbatch, scancel, srun) keep their
-queue in a JSON file, and the fake ``singularity`` (LUMI) and ``apptainer`` (JURECA)
-pretend to download a model, to serve one, or to fine-tune. The job scripts are bash,
-so this works on macOS and Linux only.
+supercomputer, with its folders (/p) moved into a temporary folder. The fake Slurm
+commands (squeue, sbatch, scancel, srun) keep their queue in a JSON file, and the fake
+``apptainer`` pretends to download a model, to serve one, or to fine-tune. The job
+scripts are bash, so this works on macOS and Linux only.
 """
 
 from __future__ import annotations
@@ -16,23 +15,19 @@ import os
 import re
 import stat
 import sys
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from gagnvist.clusters import CLUSTERS
 from gagnvist.config import Settings, load_settings
 from gagnvist.lumi.connection import Lumi
 
 USER = "testuser"
 ORGANIZER = "organizer"
-PROJECT = "project_465000001"
+PROJECT = "training2000"
 TEAM_KEY = "0123456789abcdef" * 3  # shaped like a real team key: 48 hex digits
-CONTAINER = "/appl/local/laifs/containers/test/lumi-multitorch-full-test.sif"
-
-# The same on the fake JURECA, where the project and its folders look different.
-JURECA_PROJECT = "training2000"
-JURECA_CONTAINER = f"/p/project1/{JURECA_PROJECT}/{ORGANIZER}/gagnvist/containers/vllm-test.sif"
+CONTAINER = f"/p/project1/{PROJECT}/{ORGANIZER}/gagnvist/containers/vllm-test.sif"
 
 needs_posix = pytest.mark.skipif(sys.platform == "win32", reason="the job scripts are bash")
 
@@ -48,8 +43,8 @@ def save(jobs):
         json.dump(jobs, f)
 """
 
-# The container runtime: `singularity run <container> ...` on LUMI, `apptainer exec
-# [--nv] <container> ...` on JURECA. The same fake answers to both names.
+# The container runtime: `apptainer exec [--nv] [--bind ...] <container> ...`; the
+# command for the container comes after the first argument that ends in .sif.
 _CONTAINER_RUNTIME = """
 args = sys.argv[1:]
 first = next(i for i, argument in enumerate(args) if argument.endswith(".sif"))
@@ -194,7 +189,6 @@ if job["user"] != os.environ["FAKE_USER"]:
 jobs.remove(job)
 save(jobs)
 """,
-    "singularity": _CONTAINER_RUNTIME,
     "apptainer": _CONTAINER_RUNTIME,
 }
 _SHELL_PROGRAMS = {
@@ -202,8 +196,8 @@ _SHELL_PROGRAMS = {
     "module": "exit 0\n",
     "whoami": 'echo "$FAKE_USER"\n',
     "id": 'echo "$FAKE_USER $FAKE_GROUPS"\n',
-    # `sacctmgr show assoc ... format=partition`: one partition per line, or one empty
-    # line where the project is not split by partition (LUMI).
+    # `sacctmgr show assoc ... format=partition`: one partition per line (JURECA lists
+    # the partitions a member's budgets allow), or one empty line where none are listed.
     "sacctmgr": "printf '%s\\n' $FAKE_PARTITIONS\n",
 }
 
@@ -220,15 +214,15 @@ def make_programs(folder: Path) -> Path:
 
 
 class FakeLumi:
-    """A temporary LUMI, or with ``cluster="jureca"`` a temporary JURECA: its folders,
-    its queue, and the settings to reach it."""
+    """A temporary JURECA (or, with ``cluster``, another supercomputer of this edition):
+    its folders, its queue, and the settings to reach it."""
 
     def __init__(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         bin_folder: Path,
-        cluster: str = "lumi",
+        cluster: str = "jureca",
     ) -> None:
         self.cluster = cluster
         self.root = tmp_path / "lumi"
@@ -236,33 +230,30 @@ class FakeLumi:
         for folder in (self.root / "slurm", self.home):
             folder.mkdir(parents=True)
         (self.root / "slurm" / "queue.json").write_text("[]", encoding="utf-8")
-        for container in (CONTAINER, JURECA_CONTAINER):
-            path = self.root / container.lstrip("/")
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.touch()
-        (self.root / "scratch" / PROJECT).mkdir(parents=True)
-        (self.root / "p" / "project1" / JURECA_PROJECT).mkdir(parents=True, exist_ok=True)
+        container = self.root / CONTAINER.lstrip("/")
+        container.parent.mkdir(parents=True, exist_ok=True)
+        container.touch()
+        self.project_folder.mkdir(parents=True, exist_ok=True)
+        if self.organizer_libraries:  # the organizers have installed peft for fine-tuning
+            (self.organizer_libraries / "peft").mkdir(parents=True)
 
         monkeypatch.setenv("PATH", f"{bin_folder}{os.pathsep}{os.environ['PATH']}")
         monkeypatch.setenv("HOME", str(self.home))
         monkeypatch.setenv("FAKE_ROOT", str(self.root))
         monkeypatch.setenv("FAKE_USER", USER)
         # On JURECA, running containers needs the "container" group as well.
-        groups = PROJECT if cluster == "lumi" else f"{JURECA_PROJECT} container"
-        monkeypatch.setenv("FAKE_GROUPS", groups)
-        # JURECA lists the partitions a member's budgets allow; LUMI lists none.
-        partitions = "" if cluster == "lumi" else "dc-gpu dc-gpu-devel dc-cpu"
-        monkeypatch.setenv("FAKE_PARTITIONS", partitions)
+        monkeypatch.setenv("FAKE_GROUPS", f"{PROJECT} container")
+        # JURECA lists the partitions a member's budgets allow (the GPU ones here).
+        monkeypatch.setenv("FAKE_PARTITIONS", "dc-gpu dc-gpu-devel dc-cpu")
 
-        key = tmp_path / "id_ed25519_lumi"
+        key = tmp_path / "id_ed25519_jureca"
         key.write_text("not a real key", encoding="utf-8")
         self.config = tmp_path / "gagnvist.toml"
         self.config.write_text(_shared_settings(), encoding="utf-8")
+        profile = CLUSTERS[cluster]
         personal = {
-            "GAGNVIST_LUMI_USERNAME": USER,
-            "GAGNVIST_SSH_KEY": key.as_posix(),
-            "GAGNVIST_JURECA_USERNAME": USER,
-            "GAGNVIST_JURECA_SSH_KEY": key.as_posix(),
+            profile.username_setting: USER,
+            profile.ssh_key_setting: key.as_posix(),
             "GAGNVIST_TEAM_KEY": TEAM_KEY,
             "GAGNVIST_CLUSTER": cluster,
         }
@@ -276,17 +267,26 @@ class FakeLumi:
 
     @property
     def project(self) -> str:
-        return PROJECT if self.cluster == "lumi" else JURECA_PROJECT
+        return PROJECT
 
     @property
     def project_folder(self) -> Path:
-        """The project's folder on the fake file system."""
-        if self.cluster == "lumi":
-            return self.root / "scratch" / PROJECT
-        return self.root / "p" / "project1" / JURECA_PROJECT
+        """The project's folder on the fake file system (/p/project1/<project> on JURECA)."""
+        root = CLUSTERS[self.cluster].project_root.format(project=PROJECT)
+        return self.root / root.lstrip("/")
+
+    @property
+    def organizer_libraries(self) -> Path | None:
+        """The organizers' folder of Python libraries for fine-tuning (peft), where the
+        supercomputer's container lacks them; None where it has them."""
+        pattern = CLUSTERS[self.cluster].finetune_libraries
+        if not pattern:
+            return None
+        folder = pattern.format(project=PROJECT, gateway_user=ORGANIZER)
+        return self.root / folder.lstrip("/")
 
     def mine(self, *parts: str) -> Path:
-        """A path in your gagnvist folder on the fake /scratch (or /p/project1)."""
+        """A path in your gagnvist folder in the fake project folder."""
         return self.project_folder / USER / "gagnvist" / Path(*parts)
 
     def add_model(self, name: str, *, complete: bool = True) -> Path:
@@ -304,7 +304,7 @@ class FakeLumi:
         name: str,
         *,
         state: str = "RUNNING",
-        node: str = "nid005001",
+        node: str = "jrc0501",
         user: str = USER,
     ) -> None:
         jobs = self.jobs()
@@ -341,22 +341,20 @@ class FakeLumi:
 
 
 def _shared_settings() -> str:
-    """The starter kit's gagnvist.toml, with the fake projects, organizer and containers:
-    the first value of each key is LUMI's ([lumi], [shared_services]), the second JURECA's."""
-    text = (Path(__file__).parents[1] / "gagnvist.toml").read_text(encoding="utf-8")
-    for key, values in (
-        ("project", (PROJECT, JURECA_PROJECT)),
-        ("gateway_user", (ORGANIZER, ORGANIZER)),
-        ("container", (CONTAINER, JURECA_CONTAINER)),
-    ):
-        found = iter(values)
-
-        def replacement(match: re.Match[str], key: str = key, found: Iterator[str] = found) -> str:
-            return f'{key} = "{next(found)}"'
-
-        text, count = re.subn(rf'(?m)^{key} = "[^"]*"', replacement, text)
-        assert count == 2, f"{key} is expected twice in gagnvist.toml, found {count}"
-    return text
+    """The starter kit's gagnvist.toml, with the fake project, organizer and container in
+    every supercomputer's section ([jureca], and any other of this edition)."""
+    values = {"project": PROJECT, "gateway_user": ORGANIZER, "container": CONTAINER}
+    lines, section, replaced = [], "", 0
+    shared = (Path(__file__).parents[1] / "gagnvist.toml").read_text(encoding="utf-8")
+    for line in shared.splitlines():
+        if found := re.match(r"\[(\w+)\]", line):
+            section = found[1]
+        elif section in CLUSTERS and (found := re.match(r"(\w+) = ", line)) and found[1] in values:
+            line = f'{found[1]} = "{values[found[1]]}"'
+            replaced += 1
+        lines.append(line)
+    assert replaced == len(values) * len(CLUSTERS), f"{replaced} values replaced in gagnvist.toml"
+    return "\n".join(lines) + "\n"
 
 
 def make_recording_ssh(folder: Path) -> Path:

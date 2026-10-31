@@ -1,7 +1,6 @@
 #!/bin/bash -l
-# A model server for the GAGNVÍST hackathon, submitted by `gagnvist lumi start` (or
-# `gagnvist jureca start`: the lines that differ between the two supercomputers come
-# from gagnvist/clusters/).
+# A model server for the GAGNVÍST hackathon, submitted by `gagnvist jureca start` (the
+# lines that differ between supercomputers come from gagnvist/clusters/).
 #
 # vLLM serves the model in {{model_path}} on {{gpus}} GPU(s), under
 # the name "{{request_name}}". It listens on a socket file that only your account can
@@ -12,8 +11,8 @@
 # folder, which only you can read), where `gagnvist {{cluster_name}} connect --job <job id>`
 # finds them.
 #
-# Cost: the job is billed, busy or idle, until it ends (LUMI: 0.5 GPU-hours per GPU chip
-# per hour; JURECA: a whole node, 128 core-hours per hour).
+# Cost: the job is billed, busy or idle, until it ends (on JURECA a whole node, 128
+# core-hours per hour, however many GPUs it asks for).
 # Stop it when you are done:  gagnvist {{cluster_name}} stop <job id>
 #
 # The organizers can end the job too, although Slurm lets only you cancel it: the job

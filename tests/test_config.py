@@ -24,24 +24,24 @@ def test_shared_settings_load_and_paths_are_relative_to_them(tmp_path: Path) -> 
     settings = load_settings(write_settings(tmp_path))
     assert settings.data.folder == tmp_path / "data"
     assert settings.search.index == tmp_path / "index"
-    assert settings.shared_services.local_port == 8765
+    assert settings.cluster().local_port == 8775
     assert settings.models.embeddings == "bge-m3"
 
 
 def test_personal_settings_come_from_env(tmp_path: Path) -> None:
-    key = tmp_path / "keys" / "id_ed25519_lumi"
-    env = {"GAGNVIST_LUMI_USERNAME": "jon", "GAGNVIST_SSH_KEY": "keys/id_ed25519_lumi",
+    key = tmp_path / "keys" / "id_ed25519_jureca"
+    env = {"GAGNVIST_JURECA_USERNAME": "jon", "GAGNVIST_JURECA_SSH_KEY": "keys/id_ed25519_jureca",
            "GAGNVIST_TEAM_KEY": "team-07"}  # fmt: skip
     settings = load_settings(write_settings(tmp_path, env))
-    assert settings.lumi.username == "jon"
-    assert settings.lumi.ssh_key == key  # relative to the settings' folder
-    assert settings.shared_services.team_key == "team-07"
+    assert settings.cluster().username == "jon"
+    assert settings.cluster().ssh_key == key  # relative to the settings' folder
+    assert settings.team_key == "team-07"
 
 
 def test_the_environment_wins_over_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GAGNVIST_TEAM_KEY", "from-the-environment")
     settings = load_settings(write_settings(tmp_path, {"GAGNVIST_TEAM_KEY": "from-env-file"}))
-    assert settings.shared_services.team_key == "from-the-environment"
+    assert settings.team_key == "from-the-environment"
 
 
 def test_your_own_server_replaces_the_shared_model(tmp_path: Path) -> None:
@@ -61,32 +61,44 @@ def test_env_lines_may_have_quotes_comments_and_windows_paths(tmp_path: Path) ->
     (tmp_path / ".env").write_text(
         "\ufeff# my settings\n"
         "\n"
-        "export GAGNVIST_LUMI_USERNAME=jon  # this part is a comment\n"
+        "export GAGNVIST_JURECA_USERNAME=jon  # this part is a comment\n"
         'GAGNVIST_TEAM_KEY="key with # inside"\n'
-        "GAGNVIST_SSH_KEY=C:\\Users\\Jón\\.ssh\\id_ed25519_lumi\n",
+        "GAGNVIST_JURECA_SSH_KEY=C:\\Users\\Jón\\.ssh\\id_ed25519_jureca\n",
         encoding="utf-8",
     )
     settings = load_settings(tmp_path / "gagnvist.toml")
-    assert settings.lumi.username == "jon"
-    assert settings.shared_services.team_key == "key with # inside"
-    assert str(settings.lumi.ssh_key).endswith("C:\\Users\\Jón\\.ssh\\id_ed25519_lumi")
+    assert settings.cluster().username == "jon"
+    assert settings.team_key == "key with # inside"
+    assert str(settings.cluster().ssh_key).endswith("C:\\Users\\Jón\\.ssh\\id_ed25519_jureca")
 
 
 def test_a_misspelt_name_in_env_is_reported(tmp_path: Path) -> None:
     write_settings(tmp_path)
     (tmp_path / ".env").write_text(
-        "GAGNVIST_LUMI_USERNAME=jon\nGAGNVIST_TEAMKEY=x\n", encoding="utf-8"
+        "GAGNVIST_JURECA_USERNAME=jon\nGAGNVIST_TEAMKEY=x\n", encoding="utf-8"
     )
     with pytest.raises(ConfigError, match=r"\.env, line 2: expected NAME=value"):
         load_settings(tmp_path / "gagnvist.toml")
+
+
+def test_the_lumi_editions_settings_in_env_are_ignored(tmp_path: Path) -> None:
+    """A .env written for the starter kit's LUMI edition (or for both editions) works."""
+    write_settings(tmp_path)
+    (tmp_path / ".env").write_text(
+        "GAGNVIST_LUMI_USERNAME=jon\nGAGNVIST_SSH_KEY=keys/lumi\nGAGNVIST_LOCAL_PORT=8790\n"
+        "GAGNVIST_JURECA_USERNAME=jon1\n",
+        encoding="utf-8",
+    )
+    settings = load_settings(tmp_path / "gagnvist.toml")
+    assert settings.cluster().username == "jon1" and settings.cluster().local_port == 8775
 
 
 def test_example_env_copied_unchanged_asks_for_the_real_values(tmp_path: Path) -> None:
     settings_file = write_settings(tmp_path)
     (tmp_path / ".env").write_text(EXAMPLE_ENV.read_text(encoding="utf-8"), encoding="utf-8")
     settings = load_settings(settings_file)
-    with pytest.raises(ConfigError, match=r"GAGNVIST_LUMI_USERNAME in \.env"):
-        settings.require_lumi_access()
+    with pytest.raises(ConfigError, match=r"GAGNVIST_JURECA_USERNAME in \.env"):
+        settings.require_access()
     with pytest.raises(ConfigError, match=r"GAGNVIST_TEAM_KEY in \.env"):
         settings.require_team_key()
 
@@ -104,7 +116,7 @@ def test_a_missing_settings_file_is_explained(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("value", ['"8765"', "80", "70000", "true"])
 def test_a_port_that_is_not_a_port_number_is_reported(tmp_path: Path, value: str) -> None:
-    path = write_settings(tmp_path, changes={"local_port = 8765": f"local_port = {value}"})
+    path = write_settings(tmp_path, changes={"local_port = 8775": f"local_port = {value}"})
     with pytest.raises(ConfigError, match="port number"):
         load_settings(path)
 
@@ -130,16 +142,16 @@ def test_the_shared_settings_hold_nothing_personal() -> None:
 def test_a_env_file_saved_by_windows_tools_is_read_or_explained(tmp_path: Path) -> None:
     config = write_settings(tmp_path)
     env = tmp_path / ".env"
-    env.write_bytes("\ufeffGAGNVIST_LUMI_USERNAME=me\r\n".encode())  # BOM and CRLF
-    assert load_settings(config).lumi.username == "me"
-    env.write_bytes("GAGNVIST_LUMI_USERNAME=me\n".encode("utf-16"))  # PowerShell's `>`
+    env.write_bytes("\ufeffGAGNVIST_JURECA_USERNAME=me\r\n".encode())  # BOM and CRLF
+    assert load_settings(config).cluster().username == "me"
+    env.write_bytes("GAGNVIST_JURECA_USERNAME=me\n".encode("utf-16"))  # PowerShell's `>`
     with pytest.raises(ConfigError, match="UTF-16"):
         load_settings(config)
-    env.write_bytes("GAGNVIST_SSH_KEY=C:\\Users\\\xde\xf3r\\key\n".encode("latin-1"))
+    env.write_bytes("GAGNVIST_JURECA_SSH_KEY=C:\\Users\\\xde\xf3r\\key\n".encode("latin-1"))
     with pytest.raises(ConfigError, match="not saved as UTF-8"):
         load_settings(config)
     env.unlink()
-    (tmp_path / ".env.txt").write_text("GAGNVIST_LUMI_USERNAME=me\n", encoding="utf-8")
+    (tmp_path / ".env.txt").write_text("GAGNVIST_JURECA_USERNAME=me\n", encoding="utf-8")
     with pytest.raises(ConfigError, match=r"rename it to \.env"):
         load_settings(config)
 
@@ -149,7 +161,7 @@ def test_a_pasted_key_loses_invisible_characters_and_quotes(tmp_path: Path) -> N
     settings = load_settings(
         write_settings(tmp_path, {"GAGNVIST_TEAM_KEY": f"\u201c{key}\u201d\u200b"})
     )
-    assert settings.shared_services.team_key == key
+    assert settings.team_key == key
     settings.require_team_key()
 
 
@@ -178,17 +190,17 @@ def test_the_port_and_search_folders_can_be_set_in_env(tmp_path: Path) -> None:
         write_settings(
             tmp_path,
             {
-                "GAGNVIST_LOCAL_PORT": "8790",
+                "GAGNVIST_JURECA_LOCAL_PORT": "8790",
                 "GAGNVIST_SEARCH_INDEX": "local/my-index",
                 "GAGNVIST_SEARCH_CARDS": "local/my-cards",
             },
         )
     )
-    assert settings.shared_services.local_port == 8790
+    assert settings.cluster().local_port == 8790
     assert settings.search.index == tmp_path / "local" / "my-index"
     assert settings.search.cards == tmp_path / "local" / "my-cards"
-    with pytest.raises(ConfigError, match=r"GAGNVIST_LOCAL_PORT in \.env must be a port number"):
-        load_settings(write_settings(tmp_path, {"GAGNVIST_LOCAL_PORT": "eighty"}))
+    with pytest.raises(ConfigError, match=r"GAGNVIST_JURECA_LOCAL_PORT in \.env must be a port"):
+        load_settings(write_settings(tmp_path, {"GAGNVIST_JURECA_LOCAL_PORT": "eighty"}))
 
 
 @pytest.mark.skipif(os.sep != "/", reason="on Windows a backslash is a folder separator anyway")
@@ -198,25 +210,25 @@ def test_a_search_folder_written_the_windows_way_works_here(tmp_path: Path) -> N
 
 
 def test_settings_saved_with_a_byte_order_mark_are_read(tmp_path: Path) -> None:
-    path = write_settings(tmp_path, {"GAGNVIST_LUMI_USERNAME": "me"})
+    path = write_settings(tmp_path, {"GAGNVIST_JURECA_USERNAME": "me"})
     path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
-    assert load_settings(path).lumi.username == "me"
+    assert load_settings(path).cluster().username == "me"
     path.write_bytes("# Þ\n".encode("cp1252") + path.read_bytes()[3:])
     with pytest.raises(ConfigError, match="not saved as UTF-8"):
         load_settings(path)
 
 
 def test_a_env_file_partly_in_utf16_is_explained(tmp_path: Path) -> None:
-    path = write_settings(tmp_path, {"GAGNVIST_LUMI_USERNAME": "me"})
+    path = write_settings(tmp_path, {"GAGNVIST_JURECA_USERNAME": "me"})
     with (tmp_path / ".env").open("ab") as f:  # as Windows PowerShell's `echo ... >> .env`
-        f.write("GAGNVIST_LOCAL_PORT=8790\r\n".encode("utf-16-le"))
+        f.write("GAGNVIST_JURECA_LOCAL_PORT=8790\r\n".encode("utf-16-le"))
     with pytest.raises(ConfigError, match="UTF-16"):
         load_settings(path)
 
 
 def test_a_windows_style_home_path_works_on_any_system(tmp_path: Path) -> None:
-    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_SSH_KEY": "~\\.ssh\\key"}))
-    assert settings.lumi.ssh_key == Path.home() / ".ssh" / "key"
+    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_JURECA_SSH_KEY": "~\\.ssh\\key"}))
+    assert settings.cluster().ssh_key == Path.home() / ".ssh" / "key"
 
 
 @pytest.mark.parametrize(
@@ -226,8 +238,8 @@ def test_a_windows_style_home_path_works_on_any_system(tmp_path: Path) -> None:
 )  # fmt: skip
 def test_a_home_folder_written_as_in_a_shell_works_too(tmp_path: Path, written: str) -> None:
     # The setup guides write $HOME\.ssh\...; .env does not expand it, so the kit does.
-    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_SSH_KEY": written}))
-    assert settings.lumi.ssh_key == Path.home() / ".ssh" / "key"
+    settings = load_settings(write_settings(tmp_path, {"GAGNVIST_JURECA_SSH_KEY": written}))
+    assert settings.cluster().ssh_key == Path.home() / ".ssh" / "key"
 
 
 def test_the_public_key_or_a_putty_key_is_refused(tmp_path: Path) -> None:
@@ -235,6 +247,6 @@ def test_the_public_key_or_a_putty_key_is_refused(tmp_path: Path) -> None:
     public.write_text("ssh-ed25519 AAAA me", encoding="utf-8")
     putty.write_text("PuTTY-User-Key-File-3: ssh-ed25519\n", encoding="utf-8")
     for key, message in ((public, "public half"), (putty, "PuTTY key")):
-        env = {"GAGNVIST_LUMI_USERNAME": "me", "GAGNVIST_SSH_KEY": key.as_posix()}
+        env = {"GAGNVIST_JURECA_USERNAME": "me", "GAGNVIST_JURECA_SSH_KEY": key.as_posix()}
         with pytest.raises(ConfigError, match=message):
-            load_settings(write_settings(tmp_path, env)).require_lumi_access()
+            load_settings(write_settings(tmp_path, env)).require_access()

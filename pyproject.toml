@@ -48,7 +48,7 @@ select = [
 python_version = "3.11"
 strict = true
 files = ["src"]
-exclude = ["job_templates/"]  # scripts that run on LUMI, where PyTorch is installed
+exclude = ["job_templates/"]  # scripts that run on the supercomputer, where PyTorch is installed
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,4 +1,4 @@
-"""A stand-in for the model servers on LUMI, for tests and for trying the program offline.
+"""A stand-in for the model servers, for tests and for trying the program offline.
 
 It answers the same API as the real servers, but no model is involved:
 
@@ -108,7 +108,7 @@ class _Server(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, default=8775)
     port = parser.parse_args().port
     print(f"stand-in model server on http://localhost:{port}/v1 (stop with Ctrl+C)")
     ThreadingHTTPServer(("127.0.0.1", port), _Server).serve_forever()

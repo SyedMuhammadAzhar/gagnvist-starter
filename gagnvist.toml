@@ -1,25 +1,11 @@
 # Shared settings of the gagnvist starter kit: the same for everyone, set by the
-# organizers. Your personal settings (LUMI username, SSH key, team key) do not belong
+# organizers. Your personal settings (JURECA username, SSH key, team key) do not belong
 # here: copy example.env to .env and fill it in. .env is never committed.
 #
-# The shared models run on LUMI. When the organizers say so, they also run on JURECA,
-# so that one supercomputer can stand in for the other: GAGNVIST_CLUSTER in .env (or
-# --cluster on a command) says which one the commands use. See docs/lumi.md and
-# docs/jureca.md.
+# This edition of the starter kit runs on JURECA, at the Jülich Supercomputing Centre
+# (the LUMI edition is the main branch of the repository). See docs/jureca.md.
 
-[lumi]
-host = "lumi.csc.fi"
-project = "project_462001820"            # the hackathon's LUMI project
-# The software that model jobs run in: a container of the LUMI AI Factory.
-container = "/appl/local/laifs/containers/lumi-multitorch-u24r70f21m50t210-20260415_130625/lumi-multitorch-full-u24r70f21m50t210-20260415_130625.sif"
-
-[shared_services]
-local_port = 8765                        # port on your computer for the tunnel to LUMI
-gateway_user = "syemuhaz"                # who runs the shared models on LUMI
-gateway_job = "gagnvist-gateway"         # the name of that job
-gateway_port = 4000                      # the port it listens on inside LUMI
-
-[jureca]                                 # the second supercomputer (JSC, Germany)
+[jureca]
 host = "jureca.fz-juelich.de"
 project = "training2654"                 # the hackathon's project on JURECA (JuDoor)
 # The software that model jobs run in: vLLM's own image, pulled with apptainer.
@@ -30,8 +16,8 @@ gateway_job = "gagnvist-gateway"         # the name of that job
 gateway_port = 4000                      # the port it listens on inside JURECA
 
 [models]
-chat = "qwen2.5-7b"                      # the shared language model (the same on both supercomputers)
-embeddings = "bge-m3"                    # the shared embedding model (the same on both supercomputers)
+chat = "qwen2.5-7b"                      # the shared language model
+embeddings = "bge-m3"                    # the shared embedding model
 
 [data]
 folder = "data"                          # where `gagnvist get-data` unpacks the data
