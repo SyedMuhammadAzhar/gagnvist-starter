@@ -10,7 +10,7 @@ to find the tables closest to a question (see `src/gagnvist/search/vector_search
 | `vectors.npy` | one vector per card, in the same order |
 
 The organizers make it once, from the texts in `cards/` and with the shared embedding
-model on LUMI, and ship it here, so that every team starts from the same index and
+model, and ship it here, so that every team starts from the same index and
 nobody needs to embed the cards again. If it is missing, make it yourself with
 `gagnvist build-vectors` (a few minutes with the shared models connected).
 

@@ -1,4 +1,4 @@
-# Your personal settings (LUMI username, SSH key, team key) and any keys: never committed
+# Your personal settings (JURECA username, SSH key, team key) and any keys: never committed
 .env
 .env.*
 config.toml

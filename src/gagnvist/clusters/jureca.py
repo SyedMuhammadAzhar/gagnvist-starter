@@ -7,7 +7,7 @@ container is run with apptainer, which is on the path without any module; runnin
 containers needs the account to be in the ``container`` group (asked for in JuDoor).
 Accounts and SSH keys come from JuDoor; a key is only accepted from the networks its
 ``from=`` clause names. The compute nodes have no internet, so models are downloaded
-on a login node, as on LUMI.
+on a login node.
 
 A project's GPU time is a budget of its own in JuDoor (JURECA-DC_GPU, next to the CPU
 one), and a member can use it only if the project manager gave it to them: without
@@ -60,7 +60,7 @@ JURECA = Cluster(
     partition_help=(
         "dc-gpu-devel, for quick tests only, often starts sooner but allows at most 2 hours"
     ),
-    max_jobs=2,  # a chat model and an embedding model, each on a whole node (as on LUMI)
+    max_jobs=2,  # a chat model and an embedding model, each on a whole node
     gpu_choices=(1, 2, 4),
     cpus_per_gpu=8,
     container_group="container",
