@@ -44,21 +44,19 @@ the shipped one in `index/`, and build yours in a folder of its own.
 
 ## Another embedding model
 
-1. Download it and serve it on LUMI (see [lumi.md](lumi.md)); on JURECA the same with
-   `jureca` in place of `lumi`, and port 8812 instead of 8802 below (see
-   [jureca.md, section 8](jureca.md#8-the-lumi-guides-read-for-jureca)):
+1. Download it and serve it on JURECA (see [jureca.md](jureca.md)):
 
    ```bash
-   gagnvist lumi download intfloat/multilingual-e5-large
-   gagnvist lumi start embeddings multilingual-e5-large
-   gagnvist lumi connect --job <job id>          # leave it open
+   gagnvist jureca download intfloat/multilingual-e5-large
+   gagnvist jureca start embeddings multilingual-e5-large
+   gagnvist jureca connect --job <job id>        # leave it open
    ```
 
 2. Put the lines that `connect` prints into `.env`:
 
    ```bash
    GAGNVIST_EMBEDDINGS_MODEL=multilingual-e5-large
-   GAGNVIST_EMBEDDINGS_URL=http://127.0.0.1:8802/v1
+   GAGNVIST_EMBEDDINGS_URL=http://127.0.0.1:8812/v1
    GAGNVIST_EMBEDDINGS_KEY=...
    ```
 
@@ -70,9 +68,10 @@ the shipped one in `index/`, and build yours in a folder of its own.
 
 3. `gagnvist build-vectors`, then `gagnvist evaluate`.
 
-   Keep the tunnel to the shared models open too (`gagnvist lumi connect`, in a terminal
-   of its own): `ask` and `evaluate` still use the shared chat model. That makes three
-   terminals: the shared models' tunnel, your embedding server's tunnel, and your work.
+   Keep the tunnel to the shared models open too (`gagnvist jureca connect`, in a
+   terminal of its own): `ask` and `evaluate` still use the shared chat model. That makes
+   three terminals: the shared models' tunnel, your embedding server's tunnel, and your
+   work.
 
 Some embedding models expect a word before every text: the e5 models, for example,
 want `query: ` before a question and `passage: ` before a document. Add them to the
