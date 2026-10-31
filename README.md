@@ -133,7 +133,7 @@ in detail.
 | `gagnvist try-models` | send one small request to each model |
 | `gagnvist build-cards` | write every table's card, in both languages, into `cards/` (they come with the repository; `--replace` writes them again) |
 | `gagnvist build-vectors` | embed the text of every card in `cards/` into a new vector index |
-| `gagnvist jureca ...` | the tunnel to the shared models, and models of your own (download, start, stop, fine-tune, list, delete): see [docs/jureca.md](docs/jureca.md), and [docs/own-models.md](docs/own-models.md) for a walk-through |
+| `gagnvist jureca ...` | the tunnel to the shared models, and models of your own (download, start, stop, fine-tune, list with `models`, delete): see [docs/jureca.md](docs/jureca.md), and [docs/own-models.md](docs/own-models.md) for a walk-through |
 
 Every command has `--help`.
 

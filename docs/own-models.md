@@ -244,8 +244,9 @@ Stop it as soon as you are done:  gagnvist jureca stop 1234569
 ```
 
 `gagnvist jureca log 1234569` shows, after Slurm's and the container's own messages,
-"20 conversations; training on the GPU", the loss after each step ("epoch 1 step 3/3:
-loss ..."), and at the end "Finished: the adapter is in .../finetune/journey-v1/adapter".
+"20 conversations; training on the GPU", the loss every ten steps and at the last one
+("epoch 1 step 3/3: loss ... (0.4 min)"), and at the end "Finished: the adapter is in
+.../finetune/journey-v1/adapter".
 A 0.5B model and 20 examples take a few minutes in all; hundreds of examples and a 7B
 model take longer in proportion.
 

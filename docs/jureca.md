@@ -169,7 +169,7 @@ It logs in, and tells you whether your account is in the hackathon's project, wh
 the shared models are running, and, if they are, whether they accept your team key:
 
 ```text
-Logging in to jureca.fz-juelich.de as your_jureca_username with the key ~/.ssh/id_ed25519_jureca ...
+Logging in to jureca.fz-juelich.de as your_jureca_username with the key /Users/you/.ssh/id_ed25519_jureca ...
   You are logged in as your_jureca_username.
   You are a member of the project training2654.
   The shared models are running (on jrc0406).
@@ -318,7 +318,10 @@ of yours serves it). The project's disk space is shared by everyone: delete what
 longer use. A deleted model can be downloaded again. Fetch models with
 `gagnvist jureca download` rather than copying them there yourself: `download` writes a
 `.download-complete` file when it has finished, without which `gagnvist jureca models`
-shows the folder as "download not finished" and `start` takes it only by its full path.
+shows the folder as "download not finished" and `start` refuses it, also by its full
+path (a folder outside your models folder, such as a teammate's, is taken by its full
+path as long as it holds a `config.json`). If you did copy a complete model there
+yourself, create that file: `touch <the model folder>/.download-complete` on JURECA.
 
 ## 8. Fine-tuning
 
@@ -396,7 +399,7 @@ gagnvist jureca connect --job <job id>   # prints GAGNVIST_CHAT_MODEL=numbers-v1
 | `refused the key` / `GAGNVIST_TEAM_KEY ... has N characters` | Copy your team key into `.env` again: 48 letters and digits, without quote marks or spaces. The tunnel can stay open. |
 | `.env is saved as UTF-16` / `is not saved as UTF-8` | Save `.env` again with the encoding UTF-8 (Notepad: *File*, *Save as*, *Encoding*). |
 | `found .env.txt but no .env` | Rename the file to `.env`. |
-| `running scripts is disabled` (PowerShell) | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, then activate again. |
+| `running scripts is disabled` (PowerShell) | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force`, then activate again. |
 | `gagnvist: command not found` / `command not found: gagnvist` / `not recognized` | Activate the environment in this terminal: `source .venv/bin/activate` (Windows: `.venv\Scripts\activate`). |
 | `the connection ... broke off` | The shared models may have been restarted: `gagnvist jureca connect` follows them within a minute or two; if not, stop it with Ctrl+C and start it again. |
 | `channel 1: open failed: connect failed: Connection refused` (in the `jureca connect` terminal) | Nothing to do: the shared models were being restarted, and the tunnel waits for them. Ask again once they answer. |
