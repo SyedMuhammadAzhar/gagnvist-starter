@@ -34,9 +34,19 @@ A100s have 40 GB each; the QoS ``normal`` allows 24 h per job, and ``dc-gpu-deve
 2 running jobs. Apptainer's site configuration binds all of ``/p`` (``bind path = /p``),
 so the ``--bind`` below is belt and braces; ``/p/project`` and ``/p/fastdata`` do not
 exist on JURECA (``/p/project1``, ``/p/scratch`` and ``/p/data1`` do). vLLM's image
-lacks ``peft``, which fine-tuning imports (checked against its Dockerfile and
-requirements): hence ``finetune_libraries``. Still unverified: vLLM itself on the
-A100 nodes, and the gateway job end to end.
+lacks ``peft``, which fine-tuning imports (checked against the image's Dockerfile and
+requirements, v0.32.0; everything else peft needs, accelerate included, is in the
+image): hence ``finetune_libraries``.
+
+Checked live on 2026-10-31, 02:17 UTC: Slurm 25.05 (``srun`` does not take
+``--cpus-per-task`` over from the job, as JSC's own job script examples note: the job
+scripts export ``SRUN_CPUS_PER_TASK``); QoS ``normal`` 24 h, 64 running and 512
+submitted jobs per user, ``dc-gpu-devel`` 2 h, 2 running and 4 submitted; the login
+shell's umask is 0022; a home folder (``/p/home/jusers/<user>/jureca``) has 20 GB and
+80,000 files, which is why models, caches and the organizers' libraries live under
+``/p/project1``; the compute nodes' driver supports CUDA 13 (JSC's known-issues page:
+driver update of 2025-08-28). Still unverified: vLLM itself on the A100 nodes, and the
+gateway job end to end (the organizers' runbook has the smoke tests).
 """
 
 from __future__ import annotations
