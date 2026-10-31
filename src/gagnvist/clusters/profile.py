@@ -41,7 +41,7 @@ class Cluster:
     partition_help: str  # one line about the choice, for --help
     max_jobs: int  # your jobs, running or waiting, at the same time
     gpu_choices: tuple[int, ...]  # GPUs per job: a model is split evenly between them
-    cpus_per_gpu: int  # CPU cores a job asks for, per GPU
+    cpus_per_gpu: int  # CPUs (--cpus-per-task; hardware threads on JURECA) a job asks for, per GPU
     container_group: str  # a group your account needs to run containers ("" if none)
     # A folder of Python libraries that fine-tuning needs and the container lacks
     # (peft), which the organizers fill once and every fine-tuning job puts on its

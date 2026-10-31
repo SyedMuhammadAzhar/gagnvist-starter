@@ -50,7 +50,7 @@ JOB_NAMES = ("gagnvist-chat", "gagnvist-embeddings", "gagnvist-finetune")
 # (COMPLETING, for up to a minute after `stop`) or has ended does not count towards the
 # limit, so a job you stopped can be replaced at once.
 COUNTED_STATES = "PENDING,CONFIGURING,RUNNING,SUSPENDED"
-CPUS_PER_GPU = DEFAULT.cpus_per_gpu  # CPU cores a job asks for, per GPU
+CPUS_PER_GPU = DEFAULT.cpus_per_gpu  # CPUs (--cpus-per-task) a job asks for, per GPU
 LOGS = "$HOME/.gagnvist/logs"  # as written in the scripts, where the shell expands $HOME
 _SLURM_SILENT = "Slurm, {label}'s job system, did not answer; try again in a minute"
 

@@ -89,8 +89,9 @@ JURECA = Cluster(
     host_key_hint="JURECA's host key (its fingerprints are on JuDoor's SSH keys page)",
     modules="module purge",
     login_modules="module purge >/dev/null 2>&1",
-    # --bind: the models and adapters are under /p/project1, which apptainer does not
-    # mount by itself (it mounts your home folder, /tmp and the current folder).
+    # --bind: the models and adapters are under /p/project1. JURECA's apptainer.conf binds
+    # all of /p already, and mounts /tmp and your home folder (checked 2026-10-31), so this
+    # only keeps the jobs working if that site setting changes; /p/data1 paths rely on it.
     container_runtime="apptainer exec --nv --bind /p/project1,/p/scratch",
     login_container_runtime="apptainer exec --bind /p/project1,/p/scratch",
     gpu_environment="",
